@@ -1,8 +1,10 @@
 add_executable(cassm
 	str.cpp
+	error.cpp
 	source.cpp
 	instruction.cpp
 	buffer.cpp
+	assembler.cpp
 	main.cpp
 )
 

@@ -1,5 +1,6 @@
 #include <iostream>
-#include "source.h"
+#include "error.h"
+#include "assembler.h"
 
 using namespace cassm;
 
@@ -8,21 +9,17 @@ int main(int argc, char **argv)
   if (argc < 2)
     return -1;
 
-  auto source = load(argv[1]);
-
-  for (const auto& line: source)
+  try
   {
-    std::cout << line.index() << ": " << line.text() << std::endl;
+    Assembler assembler;
+    assembler.file(argv[1]);
+    assembler.assemble();
 
-    LineReader reader(line);
-    Token token;
-    do
-    {
-      token = reader.nextToken();
-      std::cout << "  " << token << std::endl;
-    }
-    while(token.type != TokenType::End);
+    return 0;
   }
-
-  return 0;
+  catch (Error& err)
+  {
+    std::cerr << err.message() << std::endl;
+    return -1;
+  }
 }

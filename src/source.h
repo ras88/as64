@@ -1,8 +1,10 @@
 #ifndef _INCLUDED_CASSM_SOURCE_H
 #define _INCLUDED_CASSM_SOURCE_H
 
-#include <vector>
 #include <string>
+#include <memory>
+#include <istream>
+#include <stack>
 
 namespace cassm
 {
@@ -14,39 +16,46 @@ namespace cassm
 class Line
 {
 public:
-  Line(int index, const char *text, size_t length);
+  Line() noexcept;
+  Line(const std::string& filename, int lineNumber, std::string&& text) noexcept;
 
-  int index() const { return index_; }
+  bool isValid() const noexcept { return lineNumber_ != -1; }
+  int lineNumber() const noexcept { return lineNumber_; }
 
-  size_t length() const { return text_.length(); }
-  std::string text() const { return text_; }
-  char operator[](int index) const { return text_[index]; }
+  size_t length() const noexcept { return text_.length(); }
+  std::string text() const noexcept { return text_; }
+  char operator[](int index) const noexcept { return text_[index]; }
 
 private:
-  int index_;
+  std::string filename_;
+  int lineNumber_;
   std::string text_;
 };
 
 // ----------------------------------------------------------------------------
-//      Source
+//      SourceStream
 // ----------------------------------------------------------------------------
 
-class Source
+class SourceStream
 {
 public:
-  Source(const std::string& filename, const std::string& text);
+  Line nextLine();
 
-  const auto begin() const { return lines_.begin(); }
-  const auto end() const { return lines_.end(); }
-  const auto rbegin() const { return lines_.rbegin(); }
-  const auto rend() const { return lines_.rend(); }
+  void includeFile(const std::string& filename);
 
 private:
-  std::string filename_;
-  std::vector<Line> lines_;
-};
+  struct Source
+  {
+    Source(const std::string& filename, std::unique_ptr<std::istream> input)
+      : filename(filename), input(std::move(input)), lineNumber(0) { }
 
-Source load(const std::string& filename);
+    std::string filename;
+    std::unique_ptr<std::istream> input;
+    int lineNumber;
+  };
+
+  std::stack<Source> sources_;
+};
 
 // ----------------------------------------------------------------------------
 //      TokenType
@@ -58,8 +67,7 @@ enum class TokenType
   Identifier,
   Number,
   Literal,
-  Directive,
-  Punctuation
+  Punctuator
 };
 
 // ----------------------------------------------------------------------------
@@ -71,10 +79,14 @@ struct Token
   TokenType type;
   int offset;
   std::string text;
-  int number;
+  union
+  {
+    int number;
+    char punctuator;
+  };
 };
 
-std::ostream& operator<<(std::ostream& s, const Token& token);
+std::ostream& operator<<(std::ostream& s, const Token& token) noexcept;
 
 // ----------------------------------------------------------------------------
 //      LineReader
@@ -83,16 +95,18 @@ std::ostream& operator<<(std::ostream& s, const Token& token);
 class LineReader
 {
 public:
-  LineReader(const Line& line);
+  LineReader(const Line& line) noexcept;
 
   Token nextToken();
+  void unget(Token& token);
 
 private:
-  int get() { return offset_ == line_.length() ? -1 : line_[offset_++]; }
-  void unget() { -- offset_; }
+  int get() noexcept { return offset_ == line_.length() ? -1 : line_[offset_++]; }
+  void unget() noexcept { -- offset_; }
 
   const Line& line_;
   int offset_;
+  Token unget_;
 };
 
 }

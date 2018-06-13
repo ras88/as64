@@ -1,0 +1,34 @@
+* Forcing absolute addressing:
+    lda !$ff,x
+
+* ldx "A"
+
+* ldy @"A"                        [ screen code]
+
+* JSR $0000: TARGET = *-2         [ multiple statements on a line ]
+
+* lda <$ABCD                      [ > and < force immediate mode ]
+
+* lda "A": lda @"A"               [ ascii and screen codes also force immediate mode ]
+
+* * = $c000                       [ note assignment to * ]
+
+* no reassignments to symbols via =
+
+* strict left to right evaluation of expressions; no operator precedence or parentheses allowed
+
+* pseudo-ops
+  * .org [word]                   [ same as * = ... except it never generates filler bytes ]
+  * .buf [word]                   [ create internal buffer of specified size, filled with 0 ]
+  * .off [word]                   [ offset code destination ]
+  * .ofe                          [ end of offset coding ]
+  * .obj "filename"               [ create object file ]
+  * .seq "filename"               [ includes source file ]
+  * .byte [byte, "text", ... ]
+  * .byt$                         [ numeric values default to hex ]
+  * .byt%                         [ numeric values default to binary ]
+  * .word, .wor$, .wor%
+  * .asc "text", byte             [ same as .byte ]
+  * .scr "text", byte             [ screen codes instead of ascii ]
+
+* pseudo-ops can be extended or shortened

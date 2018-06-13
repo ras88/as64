@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include "error.h"
 #include "source.h"
 
 namespace cassm
@@ -10,52 +11,57 @@ namespace cassm
 //      Line
 // ----------------------------------------------------------------------------
 
-Line::Line(int index, const char *text, size_t length)
-  : index_(index), text_(text, length)
+Line::Line() noexcept
+  : lineNumber_(-1)
+{
+}
+
+Line::Line(const std::string& filename, int lineNumber, std::string&& text) noexcept
+  : filename_(filename), lineNumber_(lineNumber), text_(std::move(text))
 {
 }
 
 // ----------------------------------------------------------------------------
-//      Source
+//      SourceStream
 // ----------------------------------------------------------------------------
 
-Source::Source(const std::string& filename, const std::string& text)
-  : filename_(filename)
+void SourceStream::includeFile(const std::string& filename)
 {
-  const auto *p = text.c_str();
-  while (*p)
+  auto input = std::make_unique<std::ifstream>(filename);
+  if (! input->is_open())
+    throw SystemError(filename);
+
+  sources_.emplace(filename, std::move(input));
+}
+
+Line SourceStream::nextLine()
+{
+  for ( ; ; )
   {
-    const auto *sp = p;
-    while (*p && *p != '\n' && *p != '\r')
-      ++ p;
-    lines_.emplace_back(lines_.size(), sp, p - sp);
-    if (*p == '\r')
-      ++ p;
-    if (*p == '\n')
-      ++ p;
+    if (sources_.empty())
+      return { };
+
+    auto& source = sources_.top();
+    std::string line;
+    if (std::getline(*source.input, line))
+      return { source.filename, ++ source.lineNumber, std::move(line) };
+
+    if (source.input->bad())
+    {
+      auto filename = source.filename;
+      sources_.pop();
+      throw SystemError(filename);
+    }
+
+    sources_.pop();
   }
-}
-
-Source load(const std::string& filename)
-{
-  std::ifstream s(filename);
-  if (! s.good())
-    throw -1;     // TODO
-
-  std::stringstream buf;
-  buf << s.rdbuf();
-  s.close();
-  if (! s.good())
-    throw -1;     // TODO
-
-  return { filename, buf.str().c_str() };
 }
 
 // ----------------------------------------------------------------------------
 //      Token
 // ----------------------------------------------------------------------------
 
-std::ostream& operator<<(std::ostream& s, const Token& token)
+std::ostream& operator<<(std::ostream& s, const Token& token) noexcept
 {
   switch (token.type)
   {
@@ -75,12 +81,8 @@ std::ostream& operator<<(std::ostream& s, const Token& token)
       s << "LITERAL: \"" << token.text << '"';
       break;
 
-    case TokenType::Directive:
-      s << "DIRECTIVE: " << token.text;
-      break;
-
-    case TokenType::Punctuation:
-      s << "PUNCTUATION: " << token.text;
+    case TokenType::Punctuator:
+      s << "PUNCTUATION: " << token.punctuator;
       break;
 
     default:
@@ -95,15 +97,23 @@ std::ostream& operator<<(std::ostream& s, const Token& token)
 //      LineReader
 // ----------------------------------------------------------------------------
 
-LineReader::LineReader(const Line& line)
+LineReader::LineReader(const Line& line) noexcept
   : line_(line), offset_(0)
 {
+  unget_.type = TokenType::End;               // Indicates no token to unget
 }
 
 Token LineReader::nextToken()
 {
+  if (unget_.type != TokenType::End)
+  {
+    Token token = unget_;
+    unget_.type = TokenType::End;
+    return token;
+  }
+
   int c;
-  while ((c = get()) != -1 && std::isspace(c))
+  while (std::isspace(c = get()))
   {
   }
 
@@ -118,10 +128,10 @@ Token LineReader::nextToken()
   token.offset = offset_ - 1;
 
 
-  if (std::isalpha(c) || c == '_')
+  if (std::isalpha(c) || c == '_' || c == '\'')
   {
     token.text += c;
-    while ((c = get()) == '$' || c == '_' || std::isalpha(c))
+    while ((c = get()) == '$' || c == '_' || c == '\'' || std::isalpha(c))
       token.text += c;
     if (c != -1)
       unget();
@@ -133,7 +143,7 @@ Token LineReader::nextToken()
   {
     // Decimal constant
     int value = c - '0';
-    while ((c = get()) != -1 && std::isdigit(c))
+    while (std::isdigit(c = get()))
     {
       if (value >= 0xffffffff / 10)
         throw -1;                                             // TODO
@@ -206,19 +216,6 @@ Token LineReader::nextToken()
     return token;
   }
 
-  if (c == '.')
-  {
-    token.text += c;
-    while ((c = get()) != -1 && std::isalpha(c))
-      token.text += c;
-    if (c != -1)
-      unget();
-    if (token.text.length() == 1)
-      throw -1;                                               // TODO
-    token.type = TokenType::Directive;
-    return token;
-  }
-
   if (c == '"')
   {
     // TODO: did PowerAssembler support any escapes?
@@ -230,9 +227,14 @@ Token LineReader::nextToken()
     return token;
   }
 
-  token.text += c;
-  token.type = TokenType::Punctuation;
+  token.punctuator = c;
+  token.type = TokenType::Punctuator;
   return token;
+}
+
+void LineReader::unget(Token& token)
+{
+  unget_ = token;
 }
 
 }
