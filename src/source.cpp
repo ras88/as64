@@ -146,7 +146,7 @@ Token LineReader::nextToken()
     while (std::isdigit(c = get()))
     {
       if (value >= 0xffffffff / 10)
-        throw -1;                                             // TODO
+        throw SourceError("Integer constant overflow");
       value = value * 10 + (c - '0');
     }
     if (c != -1)
@@ -179,9 +179,9 @@ Token LineReader::nextToken()
       value = (value << 4) + c;
     }
     if (digits < 1)
-      throw -1;                                               // TODO
+      throw SourceError("Invalid hexadecimal constant");
     if (digits > 8)
-      throw -1;                                               // TODO
+      throw SourceError("Integer constant overflow");
     token.type = TokenType::Number;
     token.number = value;
     return token;
@@ -208,9 +208,9 @@ Token LineReader::nextToken()
       value = (value << 1) + c;
     }
     if (digits < 1)
-      throw -1;                                               // TODO
+      throw SourceError("Invalid binary constant");
     if (digits > 32)
-      throw -1;                                               // TODO
+      throw SourceError("Integer constant overflow");
     token.type = TokenType::Number;
     token.number = value;
     return token;
@@ -221,8 +221,6 @@ Token LineReader::nextToken()
     // TODO: did PowerAssembler support any escapes?
     while ((c = get()) != '"' && c != -1)
       token.text += c;
-    if (c == -1)
-      throw -1;                                               // TODO
     token.type = TokenType::Literal;
     return token;
   }
@@ -235,6 +233,36 @@ Token LineReader::nextToken()
 void LineReader::unget(Token& token)
 {
   unget_ = token;
+}
+
+// ----------------------------------------------------------------------------
+//      SourceError
+// ----------------------------------------------------------------------------
+
+SourceError::SourceError(const std::string& message) noexcept
+  : message_(message), lineNumber_(0)
+{
+}
+
+void SourceError::setLocation(const Line& line) noexcept
+{
+  filename_ = line.filename();
+  lineNumber_ = line.lineNumber();
+}
+
+std::string SourceError::format() const noexcept
+{
+  std::stringstream s;
+  if (! filename_.empty())
+  {
+    s << filename_ << ':';
+    if (lineNumber_)
+      s << lineNumber_ << ':';
+    s << ' ';
+  }
+  s << message();
+
+  return s.str();
 }
 
 }

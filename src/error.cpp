@@ -12,10 +12,15 @@ namespace cassm
 
 std::string SystemError::message() const noexcept
 {
+  return strerror(code_);
+}
+
+std::string SystemError::format() const noexcept
+{
   std::stringstream s;
-  if (path_ != "")
-    s << "File \"" << path_ << "\": ";
-  s << strerror(number_);
+  if (! path_.empty())
+    s << path_ << ": ";
+  s << message();
 
   return s.str();
 }

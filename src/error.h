@@ -14,9 +14,8 @@ namespace cassm
 class Error : public std::exception
 {
 public:
-  virtual std::string message() const noexcept { return what(); } 
-  virtual std::string path() const noexcept { return ""; }
-  virtual int number() const noexcept { return 0; }
+  virtual std::string message() const noexcept { return what(); }
+  virtual std::string format() const noexcept { return message(); }
 };
 
 // ----------------------------------------------------------------------------
@@ -26,22 +25,24 @@ public:
 class SystemError : public Error
 {
 public:
-  SystemError(const std::string& path, int number = errno) noexcept
-    : path_(path), number_(number) { }
-  SystemError(int number = errno) noexcept
-    : number_(number) { }
+  SystemError(const std::string& path, int code = errno) noexcept
+    : path_(path), code_(code) { }
+  SystemError(int code = errno) noexcept
+    : code_(code) { }
   SystemError(const SystemError& other) = default;
   virtual ~SystemError() noexcept = default;
   SystemError& operator=(const SystemError& other) = default;
 
-  std::string path() const noexcept override { return path_; }
-  int number() const noexcept override { return number_; }
   const char *what() const noexcept override { return "System Error"; }
   std::string message() const noexcept override;
+  std::string format() const noexcept override;
+
+  std::string path() const noexcept { return path_; }
+  int code() const noexcept { return code_; }
 
 private:
   std::string path_;
-  int number_;
+  int code_;
 };
 
 }

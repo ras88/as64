@@ -19,7 +19,7 @@ int main(int argc, char **argv)
   }
   catch (Error& err)
   {
-    std::cerr << err.message() << std::endl;
+    std::cerr << "[Error] " << err.format() << std::endl;
     return -1;
   }
 }

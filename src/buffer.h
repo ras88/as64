@@ -7,6 +7,8 @@
 namespace cassm
 {
 
+using Address = int;
+
 // ----------------------------------------------------------------------------
 //      CodeBuffer
 // ----------------------------------------------------------------------------
@@ -30,12 +32,15 @@ class CodeWriter
 public:
   CodeWriter(CodeBuffer& buffer);
 
-  void byte(uint8_t value) { buffer_.writeByte(offset_, value); ++ offset_; }
-  void word(uint16_t value) { buffer_.writeWord(offset_, value); offset_ += 2; }
+  Address pc() const noexcept { return pc_; }
+
+  void byte(uint8_t value) { buffer_.writeByte(offset_, value); ++ offset_; ++ pc_; }
+  void word(uint16_t value) { buffer_.writeWord(offset_, value); offset_ += 2; pc_ += 2; }
 
 private:
   CodeBuffer& buffer_;
   int offset_;
+  Address pc_;
 };
 
 }

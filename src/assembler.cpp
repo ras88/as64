@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cstdarg>
 #include "error.h"
 #include "instruction.h"
 #include "assembler.h"
@@ -9,6 +10,11 @@ namespace cassm
 // ----------------------------------------------------------------------------
 //      Assembler
 // ----------------------------------------------------------------------------
+
+Assembler::Assembler()
+  : writer_(code_)
+{
+}
 
 void Assembler::file(const std::string& filename)
 {
@@ -25,10 +31,11 @@ void Assembler::assemble()
       LineReader reader(line);
       handleLine(reader);
     }
-    catch (Error& err)
+    catch (SourceError& err)
     {
       // Errors on a single line are not fatal.
-      std::cerr << "[Error] " << err.message() << std::endl;
+      err.setLocation(line);
+      std::cerr << "[Error] " << err.format() << std::endl;
     }
   }
 }
@@ -46,13 +53,40 @@ void Assembler::handleLine(LineReader& reader)
     }
 
     // Must be a symbol to define
+    std::string name = token.text;
+    if (symbols_.exists(name))
+      throwError("Symbol '%s' already exists", name.c_str());
 
+    token = reader.nextToken();
+    if (token.type == TokenType::Punctuator && token.punctuator == '=')
+    {
+      symbols_.emplace(name, evalExpression(reader));
+      return;
+    }
 
-
-
-
-
+    symbols_.emplace(name, writer_.pc());
+    if (token.type == TokenType::Identifier)
+    {
+      ins = instructionNamed(token.text);
+      if (! ins)
+        throwError("Invalid instruction ('%s')", token.text.c_str());
+      handleInstruction(reader, *ins);
+      return;
+    }
+    if (token.type == TokenType::Punctuator && token.punctuator == '.')
+    {
+      handleDirective(reader);
+      return;
+    }
+    throwError("Expected instruction or directive");
   }
+
+  if (token.type == TokenType::Punctuator && token.punctuator == '.')
+  {
+    handleDirective(reader);
+    return;
+  }
+  // TODO
 }
 
 void Assembler::handleInstruction(LineReader& reader, Instruction& ins)
@@ -89,7 +123,7 @@ void Assembler::handleInstruction(LineReader& reader, Instruction& ins)
         return;
 
       default:
-        throw -1;               // TODO
+        throwError("Unexpected character ('%c')", token.punctuator);
     }
   }
 }
@@ -100,8 +134,9 @@ void Assembler::handleImmediate(LineReader& reader, Instruction& ins)
   auto value = byteExpression(reader, selector);
   auto opcode = ins.opcode(AddrMode::Immediate);
   if (! isValid(opcode))
-    throw -1;                                   // TODO
-  std::cout << opcode << ' ' << value << std::endl;
+    throwError("Immediate mode is not supported by instruction '%s'", ins.name().c_str());
+  writer_.byte(opcode);
+  writer_.byte(value);
 }
 
 void Assembler::handleDirect(LineReader& reader, Instruction& ins, bool forceAbsolute)
@@ -119,11 +154,21 @@ void Assembler::handleRelative(LineReader& reader, Instruction& ins)
 
 }
 
+void Assembler::handleDirective(LineReader& reader)
+{
+  auto token = reader.nextToken();
+  if (token.type != TokenType::Identifier)
+    throwError("Expected a directive name");
+
+  // TODO: table of directives with functions to handle them
+  // allow shorter or longer names as long as unambiguous
+  std::cout << token.text << std::endl;             // TODO
+
+}
+
 int Assembler::byteExpression(LineReader& reader, ByteSelector selector)
 {
   auto value = evalExpression(reader);
-  if (value < 0 || value >= 0xffff)
-    throw -1;                       // TODO
   switch (selector)
   {
     case ByteSelector::Low:
@@ -134,7 +179,7 @@ int Assembler::byteExpression(LineReader& reader, ByteSelector selector)
 
     case ByteSelector::Unspecified:
       if (value > 0xff)
-        throw -1;                   // TODO
+        throwError("Invalid value (%d); expected a number between 0 and 255", value);
       return value;
   }
 }
@@ -167,6 +212,8 @@ int Assembler::evalExpression(LineReader& reader)
         return value;
     }
   }
+  if (value < 0 || value > 0xffff)
+    throwError("Invalid expression result (%d); expected a number between 0 and 65535", value);
   return value;
 }
 
@@ -177,8 +224,10 @@ int Assembler::evalOperand(LineReader& reader)
     return token.number;
   if (token.type == TokenType::Identifier)
   {
-    // TODO: Lookup symbol
-    return 0;
+    auto *value = symbols_.get(token.text);
+    if (! value)
+      throwError("Undefined symbol '%s'", token.text.c_str());
+    return *value;
   }
   if (token.type == TokenType::Literal)
   {
@@ -190,17 +239,17 @@ int Assembler::evalOperand(LineReader& reader)
     switch (token.punctuator)
     {
       case '*':
-        return 0;                     // TODO: program counter
+        return writer_.pc();
 
       case '@':
         return 0;                     // TODO: screen code
 
       default:
-        throw -1;                     // TODO
+        throwError("Unexpected character ('%c')", token.punctuator);
     }
   }
 
-  throw -1;                           // TODO
+  throwError("Expected a valid operand");
 }
 
 Assembler::ByteSelector Assembler::optionalByteSelector(LineReader& reader)
@@ -219,6 +268,16 @@ Assembler::ByteSelector Assembler::optionalByteSelector(LineReader& reader)
   }
   reader.unget(token);
   return ByteSelector::Unspecified;
+}
+
+void Assembler::throwError(const char *format, ...)
+{
+  va_list ap;
+  va_start(ap, format);
+
+  char buf[1024];
+  vsnprintf(buf, sizeof(buf), format, ap);
+  throw SourceError(buf);
 }
 
 }

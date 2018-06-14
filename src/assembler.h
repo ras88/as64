@@ -3,6 +3,8 @@
 
 #include <string>
 #include "source.h"
+#include "buffer.h"
+#include "table.h"
 
 namespace cassm
 {
@@ -16,6 +18,8 @@ class Instruction;
 class Assembler
 {
 public:
+  Assembler();
+
   void file(const std::string& filename);
 
   void assemble();
@@ -34,12 +38,17 @@ private:
   void handleDirect(LineReader& reader, Instruction& ins, bool forceAbsolute);
   void handleIndirect(LineReader& reader, Instruction& ins);
   void handleRelative(LineReader& reader, Instruction& ins);
+  void handleDirective(LineReader& reader);
   int byteExpression(LineReader& reader, ByteSelector selector);
   int evalExpression(LineReader& reader);
   int evalOperand(LineReader& reader);
   ByteSelector optionalByteSelector(LineReader& reader);
+  [[noreturn]] void throwError(const char *format, ...);
 
   SourceStream input_;
+  CodeBuffer code_;
+  CodeWriter writer_;
+  SymbolTable<uint16_t> symbols_;
 };
 
 }

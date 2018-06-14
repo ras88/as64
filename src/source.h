@@ -5,6 +5,7 @@
 #include <memory>
 #include <istream>
 #include <stack>
+#include "error.h"
 
 namespace cassm
 {
@@ -20,6 +21,8 @@ public:
   Line(const std::string& filename, int lineNumber, std::string&& text) noexcept;
 
   bool isValid() const noexcept { return lineNumber_ != -1; }
+
+  std::string filename() const noexcept { return filename_; }
   int lineNumber() const noexcept { return lineNumber_; }
 
   size_t length() const noexcept { return text_.length(); }
@@ -107,6 +110,29 @@ private:
   const Line& line_;
   int offset_;
   Token unget_;
+};
+
+// ----------------------------------------------------------------------------
+//      SourceError
+// ----------------------------------------------------------------------------
+
+class SourceError : public Error
+{
+public:
+  SourceError(const std::string& message) noexcept;
+
+  const char *what() const noexcept override { return "Source Error"; }
+  std::string message() const noexcept override { return message_; }
+  std::string format() const noexcept override;
+
+  std::string filename() const noexcept { return filename_; }
+  int lineNumber() const noexcept { return lineNumber_; }
+  void setLocation(const Line& line) noexcept;
+
+private:
+  std::string message_;
+  std::string filename_;
+  int lineNumber_;
 };
 
 }
