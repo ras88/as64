@@ -1,7 +1,8 @@
 #include <iostream>
-#include <cstdarg>
+#include "str.h"
 #include "error.h"
 #include "instruction.h"
+#include "expr.h"
 #include "assembler.h"
 
 namespace cassm
@@ -55,7 +56,7 @@ void Assembler::handleLine(LineReader& reader)
     // Must be a symbol to define
     std::string name = token.text;
     if (symbols_.exists(name))
-      throwError("Symbol '%s' already exists", name.c_str());
+      throwSourceError("Symbol '%s' already exists", name.c_str());
 
     token = reader.nextToken();
     if (token.type == TokenType::Punctuator && token.punctuator == '=')
@@ -69,7 +70,7 @@ void Assembler::handleLine(LineReader& reader)
     {
       ins = instructionNamed(token.text);
       if (! ins)
-        throwError("Invalid instruction ('%s')", token.text.c_str());
+        throwSourceError("Invalid instruction ('%s')", token.text.c_str());
       handleInstruction(reader, *ins);
       return;
     }
@@ -78,19 +79,58 @@ void Assembler::handleLine(LineReader& reader)
       handleDirective(reader);
       return;
     }
-    throwError("Expected instruction or directive");
+    throwSourceError("Expected instruction or directive");
   }
 
-  if (token.type == TokenType::Punctuator && token.punctuator == '.')
+  if (token.type == TokenType::Punctuator)
   {
-    handleDirective(reader);
-    return;
+    if (token.punctuator == '.')
+    {
+      handleDirective(reader);
+      return;
+    }
+    if (token.punctuator == '*')
+    {
+      token = reader.nextToken();
+      if (token.type == TokenType::Punctuator && token.punctuator == '=')
+      {
+        auto addr = evalExpression(reader);
+        if (writer_.offset() == 0)
+          writer_.pc(addr);                                   // Behave like .org if no code has been emitted yet
+        else
+        {
+          if (addr < writer_.pc())
+            throwSourceError("Attempt to reverse program counter (from 0x%04x to 0x%04x)", writer_.pc(), addr);
+          writer_.fill(addr - writer_.pc());
+        }
+        return;
+      }
+      throwSourceError("Expected '='");
+    }
+    if (token.punctuator == '-')
+    {
+      // TODO
+    }
+    if (token.punctuator == '+')
+    {
+      // TODO
+    }
+    if (token.punctuator == '/')
+    {
+      // TODO
+    }
   }
-  // TODO
+
+  // TODO: throw
 }
 
 void Assembler::handleInstruction(LineReader& reader, Instruction& ins)
 {
+  if (ins.isRelative())
+  {
+    handleRelative(reader, ins);
+    return;
+  }
   auto token = reader.nextToken();
   if (token.type == TokenType::Punctuator)
   {
@@ -116,16 +156,11 @@ void Assembler::handleInstruction(LineReader& reader, Instruction& ins)
         handleDirect(reader, ins, true);
         return;
 
-      case '+':
-      case '-':
-        reader.unget(token);
-        handleRelative(reader, ins);
-        return;
-
       default:
-        throwError("Unexpected character ('%c')", token.punctuator);
+        throwSourceError("Unexpected character ('%c')", token.punctuator);
     }
   }
+  handleDirect(reader, ins, false);
 }
 
 void Assembler::handleImmediate(LineReader& reader, Instruction& ins)
@@ -134,14 +169,18 @@ void Assembler::handleImmediate(LineReader& reader, Instruction& ins)
   auto value = byteExpression(reader, selector);
   auto opcode = ins.opcode(AddrMode::Immediate);
   if (! isValid(opcode))
-    throwError("Immediate mode is not supported by instruction '%s'", ins.name().c_str());
+    throwSourceError("Immediate mode is not supported by instruction '%s'", ins.name().c_str());
   writer_.byte(opcode);
   writer_.byte(value);
 }
 
 void Assembler::handleDirect(LineReader& reader, Instruction& ins, bool forceAbsolute)
 {
-
+  auto addr = evalExpression(reader);
+  auto index = optionalIndex(reader);
+  auto size = ins.encodeDirect(writer_, addr, index, forceAbsolute);
+  if (size == 0)
+    throwSourceError("Invalid addressing mode for instruction '%s'", ins.name().c_str());
 }
 
 void Assembler::handleIndirect(LineReader& reader, Instruction& ins)
@@ -158,14 +197,26 @@ void Assembler::handleDirective(LineReader& reader)
 {
   auto token = reader.nextToken();
   if (token.type != TokenType::Identifier)
-    throwError("Expected a directive name");
+    throwSourceError("Expected a directive name");
 
-  // TODO: table of directives with functions to handle them
-  // allow shorter or longer names as long as unambiguous
-  std::cout << token.text << std::endl;             // TODO
+  auto *handler = directives_.get(toLowerCase(token.text));
+  if (! handler)
+    throwSourceError("Unknown directive '%s'", token.text.c_str());
 
+  (this->**handler)(reader);
 }
 
+void Assembler::handleOrg(LineReader& reader)
+{
+  writer_.pc(evalExpression(reader));
+}
+
+void Assembler::handleBuf(LineReader& reader)
+{
+  writer_.fill(evalExpression(reader));
+}
+
+// TODO: subject to forward references
 int Assembler::byteExpression(LineReader& reader, ByteSelector selector)
 {
   auto value = evalExpression(reader);
@@ -179,77 +230,21 @@ int Assembler::byteExpression(LineReader& reader, ByteSelector selector)
 
     case ByteSelector::Unspecified:
       if (value > 0xff)
-        throwError("Invalid value (%d); expected a number between 0 and 255", value);
+        throwSourceError("Invalid value (%d); expected a number between 0 and 255", value);
       return value;
   }
 }
 
+// TODO: subject to forward references
 int Assembler::evalExpression(LineReader& reader)
 {
-  auto value = evalOperand(reader);
-  Token token;
-  while ((token = reader.nextToken()).type == TokenType::Punctuator)
-  {
-    switch (token.punctuator)
-    {
-      case '+':
-        value += evalOperand(reader);
-        break;
+  Expression expr(reader);
 
-      case '-':
-        value -= evalOperand(reader);
-        break;
-
-      case '*':
-        value *= evalOperand(reader);
-        break;
-
-      case '/':
-        value /= evalOperand(reader);
-        break;
-
-      default:
-        return value;
-    }
-  }
-  if (value < 0 || value > 0xffff)
-    throwError("Invalid expression result (%d); expected a number between 0 and 65535", value);
+  auto value = expr.eval(writer_.pc(), symbols_, false);
+  std::cout << "EXPR:" << std::endl;
+  expr.dump(std::cout, 2);
+  std::cout << "Expr value = " << value << std::endl;
   return value;
-}
-
-int Assembler::evalOperand(LineReader& reader)
-{
-  auto token = reader.nextToken();
-  if (token.type == TokenType::Number)
-    return token.number;
-  if (token.type == TokenType::Identifier)
-  {
-    auto *value = symbols_.get(token.text);
-    if (! value)
-      throwError("Undefined symbol '%s'", token.text.c_str());
-    return *value;
-  }
-  if (token.type == TokenType::Literal)
-  {
-    // TODO: Expect a single character and return its PETSCII value
-    return 0;
-  }
-  if (token.type == TokenType::Punctuator)
-  {
-    switch (token.punctuator)
-    {
-      case '*':
-        return writer_.pc();
-
-      case '@':
-        return 0;                     // TODO: screen code
-
-      default:
-        throwError("Unexpected character ('%c')", token.punctuator);
-    }
-  }
-
-  throwError("Expected a valid operand");
 }
 
 Assembler::ByteSelector Assembler::optionalByteSelector(LineReader& reader)
@@ -270,14 +265,30 @@ Assembler::ByteSelector Assembler::optionalByteSelector(LineReader& reader)
   return ByteSelector::Unspecified;
 }
 
-void Assembler::throwError(const char *format, ...)
+IndexRegister Assembler::optionalIndex(LineReader& reader)
 {
-  va_list ap;
-  va_start(ap, format);
-
-  char buf[1024];
-  vsnprintf(buf, sizeof(buf), format, ap);
-  throw SourceError(buf);
+  auto token = reader.nextToken();
+  if (token.type != TokenType::Punctuator || token.punctuator != ',')
+  {
+    reader.unget(token);
+    return IndexRegister::None;
+  }
+  token = reader.nextToken();
+  if (token.type == TokenType::Identifier)
+  {
+    auto index = toLowerCase(token.text);
+    if (index == "x")
+      return IndexRegister::X;
+    if (index == "y")
+      return IndexRegister::Y;
+  }
+  throwSourceError("Expected 'x' or 'y'");
 }
+
+SymbolTable<Assembler::DirectiveHandler> Assembler::directives_([](auto& table)
+{
+  table.emplace("org",      &Assembler::handleOrg);
+  table.emplace("buf",      &Assembler::handleBuf);
+});
 
 }

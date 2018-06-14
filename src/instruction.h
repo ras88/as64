@@ -7,6 +7,19 @@
 namespace cassm
 {
 
+class CodeWriter;
+
+// ----------------------------------------------------------------------------
+//      IndexRegister
+// ----------------------------------------------------------------------------
+
+enum class IndexRegister
+{
+  None,
+  X,
+  Y
+};
+
 // ----------------------------------------------------------------------------
 //      AddrMode
 // ----------------------------------------------------------------------------
@@ -32,13 +45,17 @@ enum class AddrMode
 
 constexpr size_t AddrModeCount = static_cast<size_t>(AddrMode::_End);
 
+AddrMode absoluteMode(IndexRegister index) noexcept;
+AddrMode zeroPageMode(IndexRegister index) noexcept;
+bool isZeroPage(AddrMode mode) noexcept;
+
 // ----------------------------------------------------------------------------
 //      Opcode
 // ----------------------------------------------------------------------------
 
 using Opcode = int;
 
-constexpr bool isValid(Opcode opcode) { return opcode >= 0; }
+constexpr bool isValid(Opcode opcode) noexcept { return opcode >= 0; }
 
 using OpcodeArray = std::array<Opcode, AddrModeCount>;
 
@@ -49,17 +66,22 @@ using OpcodeArray = std::array<Opcode, AddrModeCount>;
 class Instruction
 {
 public:
-  Instruction(const std::string& name, OpcodeArray opcodes);
+  Instruction(const std::string& name, OpcodeArray opcodes) noexcept ;
 
-  std::string name() const { return name_; }
-  Opcode opcode(AddrMode mode) const { return opcodes_[static_cast<int>(mode)]; }
+  std::string name() const noexcept { return name_; }
+  Opcode opcode(AddrMode mode) const noexcept { return opcodes_[static_cast<int>(mode)]; }
+  bool isRelative() const noexcept { return isValid(opcode(AddrMode::Relative)); }
+
+  // All of the encoding methods return the number of bytes written, or 0 to indicate that no
+  // compatible addressing mode exists for the instruction.
+  size_t encodeDirect(CodeWriter& writer, uint16_t addr, IndexRegister index, bool forceAbsolute = false) const noexcept;
 
 private:
   std::string name_;
   OpcodeArray opcodes_;
 };
 
-Instruction *instructionNamed(const std::string& name);
+Instruction *instructionNamed(const std::string& name) noexcept;
 
 }
 #endif

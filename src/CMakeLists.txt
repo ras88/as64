@@ -4,6 +4,7 @@ add_executable(cassm
 	source.cpp
 	instruction.cpp
 	buffer.cpp
+	expr.cpp
 	assembler.cpp
 	main.cpp
 )

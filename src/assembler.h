@@ -4,12 +4,11 @@
 #include <string>
 #include "source.h"
 #include "buffer.h"
+#include "instruction.h"
 #include "table.h"
 
 namespace cassm
 {
-
-class Instruction;
 
 // ----------------------------------------------------------------------------
 //      Assembler
@@ -39,16 +38,20 @@ private:
   void handleIndirect(LineReader& reader, Instruction& ins);
   void handleRelative(LineReader& reader, Instruction& ins);
   void handleDirective(LineReader& reader);
+  void handleOrg(LineReader& reader);
+  void handleBuf(LineReader& reader);
   int byteExpression(LineReader& reader, ByteSelector selector);
   int evalExpression(LineReader& reader);
-  int evalOperand(LineReader& reader);
   ByteSelector optionalByteSelector(LineReader& reader);
-  [[noreturn]] void throwError(const char *format, ...);
+  IndexRegister optionalIndex(LineReader& reader);
 
   SourceStream input_;
   CodeBuffer code_;
   CodeWriter writer_;
   SymbolTable<uint16_t> symbols_;
+
+  using DirectiveHandler = void (Assembler::*)(LineReader& reader);
+  static SymbolTable<DirectiveHandler> directives_;
 };
 
 }

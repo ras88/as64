@@ -135,5 +135,7 @@ private:
   int lineNumber_;
 };
 
+[[noreturn]] void throwSourceError(const char *format, ...);
+
 }
 #endif

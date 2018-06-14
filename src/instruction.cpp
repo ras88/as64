@@ -2,10 +2,57 @@
 #include <algorithm>
 #include "str.h"
 #include "table.h"
+#include "buffer.h"
 #include "instruction.h"
 
 namespace cassm
 {
+
+// ----------------------------------------------------------------------------
+//      AddrMode
+// ----------------------------------------------------------------------------
+
+AddrMode absoluteMode(IndexRegister index) noexcept
+{
+  switch (index)
+  {
+    case IndexRegister::None:
+      return AddrMode::Absolute;
+
+    case IndexRegister::X:
+      return AddrMode::AbsoluteX;
+
+    case IndexRegister::Y:
+      return AddrMode::AbsoluteY;
+
+    default:
+      std::terminate();
+  }
+}
+
+AddrMode zeroPageMode(IndexRegister index) noexcept
+{
+  switch (index)
+  {
+    case IndexRegister::None:
+      return AddrMode::ZeroPage;
+
+    case IndexRegister::X:
+      return AddrMode::ZeroPageX;
+
+    case IndexRegister::Y:
+      return AddrMode::ZeroPageY;
+
+    default:
+      std::terminate();
+  }
+}
+
+bool isZeroPage(AddrMode mode) noexcept
+{
+  return mode == AddrMode::ZeroPage || mode == AddrMode::ZeroPageX || mode == AddrMode::ZeroPageY ||
+         mode == AddrMode::IndexedIndirect || mode == AddrMode::IndirectIndexed;
+}
 
 // ----------------------------------------------------------------------------
 //      Instruction Table
@@ -80,7 +127,7 @@ static InstructionDef g_table[] =
   { "tya",    ____,   ____,   0x98,   ____,   ____,   ____,   ____,   ____,   ____,   ____,   ____,   ____,   ____  }
 };
 
-static SymbolTable<Instruction>& instructions()
+static SymbolTable<Instruction>& instructions() noexcept
 {
   static SymbolTable<Instruction> instance([](auto& table)
   {
@@ -95,12 +142,35 @@ static SymbolTable<Instruction>& instructions()
 //      Instruction
 // ----------------------------------------------------------------------------
 
-Instruction::Instruction(const std::string& name, OpcodeArray opcodes)
+Instruction::Instruction(const std::string& name, OpcodeArray opcodes) noexcept
   : name_(name), opcodes_(opcodes)
 {
 }
 
-Instruction *instructionNamed(const std::string& name)
+size_t Instruction::encodeDirect(CodeWriter& writer, uint16_t addr, IndexRegister index, bool forceAbsolute) const noexcept
+{
+  if (addr < 0x100 && ! forceAbsolute)
+  {
+    auto op = opcode(zeroPageMode(index));
+    if (isValid(op))
+    {
+      writer.byte(op);
+      writer.byte(addr);
+      return 2;
+    }
+  }
+  auto op = opcode(absoluteMode(index));
+  if (isValid(op))
+  {
+    writer.byte(op);
+    writer.word(addr);
+    return 3;
+  }
+
+  return 0;
+}
+
+Instruction *instructionNamed(const std::string& name) noexcept
 {
   return instructions().get(toLowerCase(name));
 }

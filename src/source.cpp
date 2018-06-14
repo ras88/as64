@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <cstdarg>
 #include "error.h"
 #include "source.h"
 
@@ -263,6 +264,16 @@ std::string SourceError::format() const noexcept
   s << message();
 
   return s.str();
+}
+
+void throwSourceError(const char *format, ...)
+{
+  va_list ap;
+  va_start(ap, format);
+
+  char buf[1024];
+  vsnprintf(buf, sizeof(buf), format, ap);
+  throw SourceError(buf);
 }
 
 }
