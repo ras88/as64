@@ -11,9 +11,14 @@ int main(int argc, char **argv)
 
   try
   {
-    Parser parser;
-    parser.file(argv[1]);
-    parser.parse();
+    Context context;
+    parseFile(context, argv[1]);
+
+    context.statements().dump(std::cout);
+    std::cout << std::endl;
+
+    if (context.messages().count())
+      std::cerr << context.messages() << std::endl;
 
     return 0;
   }

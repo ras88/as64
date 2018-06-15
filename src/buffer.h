@@ -3,11 +3,10 @@
 
 #include <vector>
 #include <cstdint>
+#include "types.h"
 
 namespace cassm
 {
-
-using Address = int;
 
 // ----------------------------------------------------------------------------
 //      CodeBuffer

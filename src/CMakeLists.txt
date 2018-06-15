@@ -1,12 +1,13 @@
 add_executable(cassm
 	str.cpp
 	error.cpp
+	message.cpp
 	source.cpp
 	instruction.cpp
 	buffer.cpp
-	expr.cpp
+	ast.cpp
+	context.cpp
 	parser.cpp
-	assembler.cpp
 	main.cpp
 )
 

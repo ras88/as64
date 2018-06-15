@@ -8,233 +8,316 @@ namespace cassm
 {
 
 // ----------------------------------------------------------------------------
-//      LabelStatement
-// ----------------------------------------------------------------------------
-
-void LabelStatement::dump(std::ostream& s) const noexcept
-{
-  s << "Label: " << name_;
-}
-
-// ----------------------------------------------------------------------------
-//      SymbolDefinitionStatement
-// ----------------------------------------------------------------------------
-
-void SymbolDefinitionStatement::dump(std::ostream& s) const noexcept
-{
-  s << "Define: " << name_ << std::endl;
-  expr_.dump(s, 2);
-}
-
-// ----------------------------------------------------------------------------
-//      ProgramCounterAssignmentStatement
-// ----------------------------------------------------------------------------
-
-void ProgramCounterAssignmentStatement::dump(std::ostream& s) const noexcept
-{
-  s << "Set Program Counter:" << std::endl;
-  expr_.dump(s, 2);
-}
-
-// ----------------------------------------------------------------------------
-//      ImmediateInstructionStatement
-// ----------------------------------------------------------------------------
-
-void ImmediateInstructionStatement::dump(std::ostream& s) const noexcept
-{
-  s << "Immediate Mode Instruction: " << instruction().name() << std::endl;
-  expr_.dump(s, 2);
-}
-
-// ----------------------------------------------------------------------------
 //      Parser
 // ----------------------------------------------------------------------------
 
+class Parser
+{
+public:
+  Parser(Context& context);
+
+  void file(const std::string& filename);
+
+  void parse();
+
+private:
+  std::unique_ptr<Statement> handleStatement(LineReader& reader);
+  std::unique_ptr<Operation> handleInstruction(LineReader& reader, Instruction& ins, SourcePos insPos);
+  std::unique_ptr<Operation> handleImmediate(LineReader& reader, Instruction& ins, SourcePos insPos);
+  std::unique_ptr<Operation> handleDirect(LineReader& reader, Instruction& ins, SourcePos insPos, bool forceAbsolute);
+  std::unique_ptr<Operation> handleIndirect(LineReader& reader, Instruction& ins, SourcePos insPos);
+  std::unique_ptr<Operation> handleRelative(LineReader& reader, Instruction& ins, SourcePos insPos);
+  std::unique_ptr<Directive> handleDirective(LineReader& reader);
+  std::unique_ptr<Directive> handleOrg(LineReader& reader);
+  std::unique_ptr<Directive> handleBuf(LineReader& reader);
+  std::unique_ptr<Directive> handleSeq(LineReader& reader);
+  std::unique_ptr<Expression> parseExpression(LineReader& reader);
+  std::unique_ptr<ExprNode> parseOperand(LineReader& reader);
+  ByteSelector optionalByteSelector(LineReader& reader);
+  IndexRegister optionalIndex(LineReader& reader);
+
+  Context& context_;
+
+  using DirectiveHandler = std::unique_ptr<Directive> (Parser::*)(LineReader& reader);
+  static SymbolTable<DirectiveHandler> directives_;
+};
+
+void parseFile(Context& context, const std::string& filename)
+{
+  Parser parser(context);
+  parser.file(filename);
+  parser.parse();
+}
+
+Parser::Parser(Context& context)
+  : context_(context)
+{
+}
+
 void Parser::file(const std::string& filename)
 {
-  input_.includeFile(filename);
+  context_.source().includeFile(filename);
 }
 
 void Parser::parse()
 {
-  Line line;
-  while((line = input_.nextLine()).isValid())
+  Line *line;
+  while((line = context_.source().nextLine()) != nullptr)
   {
     try
     {
-      LineReader reader(line);
-      handleLine(reader);                                     // TODO: ensure we're at end of line
+      LineReader reader(*line);
+      auto statement = handleStatement(reader);
+      if (statement)
+        context_.statements().add(std::move(statement));
+
+      // TODO: ensure we're at end of line
     }
     catch (SourceError& err)
     {
-      // Errors on a single line are not fatal.
-      err.setLocation(line);
-      std::cerr << "[Error] " << err.format() << std::endl;
+      context_.messages().add(Severity::Error, err.pos(), err.message());
     }
   }
 }
 
-void Parser::handleLine(LineReader& reader)
+std::unique_ptr<Statement> Parser::handleStatement(LineReader& reader)
 {
-  auto token = reader.nextToken();
-  if (token.type == TokenType::Identifier)
+  auto first = reader.nextToken();
+  if (first.type == TokenType::Identifier)
   {
-    auto *ins = instructionNamed(token.text);
+    auto *ins = instructionNamed(first.text);
     if (ins)
-    {
-      handleInstruction(reader, *ins);
-      return;
-    }
+      return handleInstruction(reader, *ins, first.pos);
 
     // Must be a symbol to define
-    std::string name = token.text;
-    token = reader.nextToken();
-    if (token.type == TokenType::Punctuator && token.punctuator == '=')
-    {
-      emit(std::make_unique<SymbolDefinitionStatement>(reader.line(), name, Expression(reader)));
-      return;
-    }
-    emit(std::make_unique<LabelStatement>(reader.line(), name));
+    auto second = reader.nextToken();
+    if (second.type == TokenType::Punctuator && second.punctuator == '=')
+      return std::make_unique<SymbolDefinition>(first.pos, first.text, parseExpression(reader));
 
-    if (token.type == TokenType::Identifier)
+    if (second.type == TokenType::Identifier)
     {
-      ins = instructionNamed(token.text);
+      ins = instructionNamed(second.text);
       if (! ins)
-        throwSourceError("Invalid instruction ('%s')", token.text.c_str());
-      handleInstruction(reader, *ins);
-      return;
+        throwSourceError(second.pos, "Invalid instruction ('%s')", second.text.c_str());
+      auto node = handleInstruction(reader, *ins, second.pos);
+      if (node)
+        node->setLabel(first.text);
+      return node;
     }
-    if (token.type == TokenType::Punctuator && token.punctuator == '.')
+    if (second.type == TokenType::Punctuator && second.punctuator == '.')
     {
-      handleDirective(reader);
-      return;
+      auto node = handleDirective(reader);
+      if (node)
+        node->setLabel(first.text);
+      return node;
     }
-    throwSourceError("Expected instruction or directive");
+    throwSourceError(second.pos, "Expected instruction or directive");
   }
 
-  if (token.type == TokenType::Punctuator)
+  if (first.type == TokenType::Punctuator)
   {
-    if (token.punctuator == '.')
+    if (first.punctuator == '.')
+      return handleDirective(reader);
+    if (first.punctuator == '*')
     {
-      handleDirective(reader);
-      return;
+      auto second = reader.nextToken();
+      if (second.type == TokenType::Punctuator && second.punctuator == '=')
+        return std::make_unique<ProgramCounterAssignment>(first.pos, parseExpression(reader));
+      throwSourceError(second.pos, "Expected '='");
     }
-    if (token.punctuator == '*')
-    {
-      token = reader.nextToken();
-      if (token.type == TokenType::Punctuator && token.punctuator == '=')
-      {
-        emit(std::make_unique<ProgramCounterAssignmentStatement>(reader.line(), Expression(reader)));
-        return;
-      }
-      throwSourceError("Expected '='");
-    }
-    if (token.punctuator == '-')
+    if (first.punctuator == '-')
     {
       // TODO
     }
-    if (token.punctuator == '+')
+    if (first.punctuator == '+')
     {
       // TODO
     }
-    if (token.punctuator == '/')
+    if (first.punctuator == '/')
     {
       // TODO
     }
   }
 
   // TODO: throw
+  return nullptr;
 }
 
-void Parser::handleInstruction(LineReader& reader, Instruction& ins)
+std::unique_ptr<Operation> Parser::handleInstruction(LineReader& reader, Instruction& ins, SourcePos insPos)
 {
   if (ins.isRelative())
-  {
-    handleRelative(reader, ins);
-    return;
-  }
+    return handleRelative(reader, ins, insPos);
   auto token = reader.nextToken();
   if (token.type == TokenType::Punctuator)
   {
     switch (token.punctuator)
     {
       case '#':
-        handleImmediate(reader, ins);
-        return;
+        return handleImmediate(reader, ins, insPos);
 
       case '"':
       case '@':
       case '<':
       case '>':
         reader.unget(token);
-        handleImmediate(reader, ins);
-        return;
+        return handleImmediate(reader, ins, insPos);
 
       case '(':
-        handleIndirect(reader, ins);
-        return;
+        return handleIndirect(reader, ins, insPos);
 
       case '!':
-        handleDirect(reader, ins, true);
-        return;
+        return handleDirect(reader, ins, insPos, true);
 
       default:
-        throwSourceError("Unexpected character ('%c')", token.punctuator);
+        throwSourceError(token.pos, "Unexpected character ('%c')", token.punctuator);
     }
   }
-  handleDirect(reader, ins, false);
+  reader.unget(token);
+  return handleDirect(reader, ins, insPos, false);
 }
 
-void Parser::handleImmediate(LineReader& reader, Instruction& ins)
+std::unique_ptr<Operation> Parser::handleImmediate(LineReader& reader, Instruction& ins, SourcePos insPos)
 {
   auto selector = optionalByteSelector(reader);
   if (! ins.supports(AddrMode::Immediate))
-    throwSourceError("Immediate mode is not supported by instruction '%s'", ins.name().c_str());
-  emit(std::make_unique<ImmediateInstructionStatement>(reader.line(), ins, selector, Expression(reader)));
+    throwSourceError(insPos, "Immediate mode is not supported by instruction '%s'", ins.name().c_str());
+  return std::make_unique<ImmediateOperation>(insPos, ins, selector, parseExpression(reader));
 }
 
-void Parser::handleDirect(LineReader& reader, Instruction& ins, bool forceAbsolute)
+std::unique_ptr<Operation> Parser::handleDirect(LineReader& reader, Instruction& ins, SourcePos insPos, bool forceAbsolute)
 {
-#ifdef TODO
-  auto addr = evalExpression(reader);
+  auto expr = parseExpression(reader);
   auto index = optionalIndex(reader);
-  auto size = ins.encodeDirect(writer_, addr, index, forceAbsolute);
-  if (size == 0)
-    throwSourceError("Invalid addressing mode for instruction '%s'", ins.name().c_str());
-#endif
+  return std::make_unique<DirectOperation>(insPos, ins, index, forceAbsolute, std::move(expr));
 }
 
-void Parser::handleIndirect(LineReader& reader, Instruction& ins)
+std::unique_ptr<Operation> Parser::handleIndirect(LineReader& reader, Instruction& ins, SourcePos insPos)
 {
+  // TODO
 
+  return nullptr;
 }
 
-void Parser::handleRelative(LineReader& reader, Instruction& ins)
+std::unique_ptr<Operation> Parser::handleRelative(LineReader& reader, Instruction& ins, SourcePos insPos)
 {
-
+  return std::make_unique<BranchOperation>(insPos, ins, parseExpression(reader));
 }
 
-void Parser::handleDirective(LineReader& reader)
+std::unique_ptr<Directive> Parser::handleDirective(LineReader& reader)
 {
   auto token = reader.nextToken();
   if (token.type != TokenType::Identifier)
-    throwSourceError("Expected a directive name");
+    throwSourceError(token.pos, "Expected a directive name");
 
   auto *handler = directives_.get(toLowerCase(token.text));
   if (! handler)
-    throwSourceError("Unknown directive '%s'", token.text.c_str());
+    throwSourceError(token.pos, "Unknown directive '%s'", token.text.c_str());
 
-  (this->**handler)(reader);
+  return (this->**handler)(reader);
 }
 
-void Parser::handleOrg(LineReader& reader)
+std::unique_ptr<Directive> Parser::handleOrg(LineReader& reader)
 {
 // TODO  writer_.pc(evalExpression(reader));
+  return nullptr;
 }
 
-void Parser::handleBuf(LineReader& reader)
+std::unique_ptr<Directive> Parser::handleBuf(LineReader& reader)
 {
 // TODO  writer_.fill(evalExpression(reader));
+  return nullptr;
+}
+
+std::unique_ptr<Directive> Parser::handleSeq(LineReader& reader)
+{
+  auto token = reader.nextToken();
+  if (token.type != TokenType::Literal)
+    throwSourceError(token.pos, "Expected a quoted filename");
+  try
+  {
+    context_.source().includeFile(token.text);
+    return nullptr;
+  }
+  catch (SystemError& err)
+  {
+    throwSourceError(token.pos, "%s", err.message().c_str());
+  }
+}
+
+std::unique_ptr<Expression> Parser::parseExpression(LineReader& reader)
+{
+  // Expressions are evaluated strictly left to right, with no operator precedence,
+  // in order to match the behavior of the original assembler.
+  auto root = parseOperand(reader);
+  Token token;
+  while ((token = reader.nextToken()).type == TokenType::Punctuator)
+  {
+    auto op = token.punctuator;
+    switch (op)
+    {
+      case '+':
+        root = std::make_unique<ExprOperator>(root->pos(), std::move(root), parseOperand(reader), op,
+                                              [](int a, int b) { return a + b; });
+        break;
+
+      case '-':
+        root = std::make_unique<ExprOperator>(root->pos(), std::move(root), parseOperand(reader), op,
+                                              [](int a, int b) { return a - b; });
+        break;
+
+      case '*':
+        root = std::make_unique<ExprOperator>(root->pos(), std::move(root), parseOperand(reader), op,
+                                              [](int a, int b) { return a * b; });
+        break;
+
+      case '/':
+        // TODO: check for divide by zero in the handler
+        root = std::make_unique<ExprOperator>(root->pos(), std::move(root), parseOperand(reader), op,
+                                              [](int a, int b) { return a / b; });
+        break;
+
+      default:
+      {
+        auto expr = std::make_unique<Expression>(root->pos(), std::move(root));
+        reader.unget(token);
+        return expr;
+      }
+    }
+  }
+  auto expr = std::make_unique<Expression>(root->pos(), std::move(root));
+  reader.unget(token);
+  return expr;
+}
+
+std::unique_ptr<ExprNode> Parser::parseOperand(LineReader& reader)
+{
+  auto token = reader.nextToken();
+  if (token.type == TokenType::Number)
+    return std::make_unique<ExprConstant>(token.pos, token.number);
+  if (token.type == TokenType::Identifier)
+    return std::make_unique<ExprSymbol>(token.pos, token.text);
+  if (token.type == TokenType::Literal)
+  {
+    // TODO: Expect a single character and return its PETSCII value
+    return std::make_unique<ExprConstant>(token.pos, 0);
+  }
+  if (token.type == TokenType::Punctuator)
+  {
+    switch (token.punctuator)
+    {
+      case '*':
+        return std::make_unique<ExprProgramCounter>(token.pos);
+
+      case '@':
+        // TODO: screen code
+        return std::make_unique<ExprConstant>(token.pos, 0);
+
+      default:
+        throwSourceError(token.pos, "Unexpected character ('%c')", token.punctuator);
+    }
+  }
+
+  throwSourceError(token.pos, "Expected a valid operand");
 }
 
 ByteSelector Parser::optionalByteSelector(LineReader& reader)
@@ -272,22 +355,14 @@ IndexRegister Parser::optionalIndex(LineReader& reader)
     if (index == "y")
       return IndexRegister::Y;
   }
-  throwSourceError("Expected 'x' or 'y'");
-}
-
-void Parser::emit(std::unique_ptr<Statement> statement)
-{
-  // TODO: REMOVE
-  statement->dump(std::cout);
-  std::cout << std::endl;
-
-  statements_.push_back(std::move(statement));
+  throwSourceError(token.pos, "Expected 'x' or 'y'");
 }
 
 SymbolTable<Parser::DirectiveHandler> Parser::directives_([](auto& table)
 {
   table.emplace("org",      &Parser::handleOrg);
   table.emplace("buf",      &Parser::handleBuf);
+  table.emplace("seq",      &Parser::handleSeq);
 });
 
 }
