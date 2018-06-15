@@ -101,7 +101,9 @@ public:
   LineReader(const Line& line) noexcept;
 
   Token nextToken();
-  void unget(Token& token);
+  void unget(Token& token) noexcept;
+
+  const Line& line() const noexcept { return line_; }
 
 private:
   int get() noexcept { return offset_ == line_.length() ? -1 : line_[offset_++]; }

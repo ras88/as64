@@ -58,7 +58,7 @@ int ConstantNode::checkValue() const
 void ConstantNode::dump(std::ostream& s, int level) const noexcept
 {
   indent(s, level);
-  s << "Constant: " << value_ << std::endl;
+  s << "Constant: " << value_;
 }
 
 // ----------------------------------------------------------------------------
@@ -92,7 +92,7 @@ OwnedExprNode SymbolNode::eval(Address pc, const SymbolTable<uint16_t>& symbols,
 void SymbolNode::dump(std::ostream& s, int level) const noexcept
 {
   indent(s, level);
-  s << "Symbol: " << name_ << std::endl;
+  s << "Symbol: " << name_;
 }
 
 // ----------------------------------------------------------------------------
@@ -114,7 +114,7 @@ OwnedExprNode ProgramCounterNode::eval(Address pc, const SymbolTable<uint16_t>& 
 void ProgramCounterNode::dump(std::ostream& s, int level) const noexcept
 {
   indent(s, level);
-  s << "Program Counter" << std::endl;
+  s << "Program Counter";
 }
 
 // ----------------------------------------------------------------------------
@@ -160,16 +160,13 @@ void ArithmeticNode::dump(std::ostream& s, int level) const noexcept
   indent(s, level);
   s << "Operator: " << op_ << std::endl;
   left_->dump(s, level + 2);
+  s << std::endl;
   right_->dump(s, level + 2);
 }
 
 // ----------------------------------------------------------------------------
 //      Expression
 // ----------------------------------------------------------------------------
-
-Expression::~Expression()
-{
-}
 
 Expression::Expression(LineReader& reader)
 {
@@ -211,7 +208,7 @@ int Expression::eval(Address pc, const SymbolTable<uint16_t>& symbols, bool thro
   return root_->checkValue();
 }
 
-void Expression::dump(std::ostream& s, int level)
+void Expression::dump(std::ostream& s, int level) const
 {
   root_->dump(s, level);
 }
@@ -245,6 +242,13 @@ OwnedExprNode Expression::parseOperand(LineReader& reader)
   }
 
   throwSourceError("Expected a valid operand");
+}
+
+Expression::Expression(Expression&& other) = default;
+Expression& Expression::operator=(Expression&& other) = default;
+
+Expression::~Expression()
+{
 }
 
 }

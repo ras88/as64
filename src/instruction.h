@@ -69,6 +69,7 @@ public:
   Instruction(const std::string& name, OpcodeArray opcodes) noexcept ;
 
   std::string name() const noexcept { return name_; }
+  bool supports(AddrMode mode) const noexcept { return isValid(opcode(mode)); }
   Opcode opcode(AddrMode mode) const noexcept { return opcodes_[static_cast<int>(mode)]; }
   bool isRelative() const noexcept { return isValid(opcode(AddrMode::Relative)); }
 

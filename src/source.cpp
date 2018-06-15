@@ -231,7 +231,7 @@ Token LineReader::nextToken()
   return token;
 }
 
-void LineReader::unget(Token& token)
+void LineReader::unget(Token& token) noexcept
 {
   unget_ = token;
 }

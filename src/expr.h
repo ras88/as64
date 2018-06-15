@@ -22,6 +22,10 @@ class Expression
 {
 public:
   Expression(LineReader& reader);
+  Expression(Expression&& other);
+  Expression& operator=(Expression&& other);
+  Expression(const Expression&) = delete;
+  Expression& operator=(const Expression&) = delete;
   ~Expression();
 
   // If throwUndefined is false, this method returns -1 if the expression cannot
@@ -29,7 +33,7 @@ public:
   // always throws a SourceError.
   int eval(Address pc, const SymbolTable<uint16_t>& symbols, bool throwUndefined);
 
-  void dump(std::ostream& s, int level = 0);
+  void dump(std::ostream& s, int level = 0) const;
 
 private:
   OwnedExprNode parseOperand(LineReader& reader);

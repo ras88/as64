@@ -1,6 +1,6 @@
 #include <iostream>
 #include "error.h"
-#include "assembler.h"
+#include "parser.h"
 
 using namespace cassm;
 
@@ -11,9 +11,9 @@ int main(int argc, char **argv)
 
   try
   {
-    Assembler assembler;
-    assembler.file(argv[1]);
-    assembler.assemble();
+    Parser parser;
+    parser.file(argv[1]);
+    parser.parse();
 
     return 0;
   }
