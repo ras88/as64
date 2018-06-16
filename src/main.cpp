@@ -15,11 +15,11 @@ int main(int argc, char **argv)
     Context context;
     parseFile(context, argv[1]);
 
-    context.statements().dump(std::cout);
+    context.statements.dump(std::cout);
     std::cout << std::endl;
 
-    if (context.messages().count())
-      std::cerr << context.messages() << std::endl;
+    if (context.messages.count())
+      std::cerr << context.messages << std::endl;
 
     return 0;
   }

@@ -17,6 +17,7 @@ class Node;
 class Expression;
 class ExprNode;
 class StatementVisitor;
+class Context;
 
 // ----------------------------------------------------------------------------
 //      Node
@@ -384,21 +385,21 @@ public:
   virtual void visit(const ByteDirective& node) { }
   virtual void visit(const WordDirective& node) { }
   virtual void visit(const StringDirective& node) { }
+
+  virtual void uncaught(SourceError& err) { }
 };
 
 // ----------------------------------------------------------------------------
 //      StatementList
 // ----------------------------------------------------------------------------
 
-class StatementList: public Node
+class StatementList
 {
 public:
-  StatementList(SourcePos pos) noexcept : Node(pos) { }
-
   void add(std::unique_ptr<Statement> statement) noexcept;
 
   void accept(StatementVisitor& visitor) const;
-  void dump(std::ostream& s, int level = 0) const noexcept override;
+  void dump(std::ostream& s, int level = 0) const noexcept;;
 
 private:
   std::vector<std::unique_ptr<Statement>> statements_;
@@ -413,10 +414,10 @@ class Expression : public Node
 public:
   Expression(SourcePos pos, std::unique_ptr<ExprNode> root) : Node(pos), root_(std::move(root)) { }
 
-  // If throwUndefined is false, this method returns -1 if the expression cannot
-  // be resolved due to one or more undefined symbols. Any other error condition
-  // always throws a SourceError.
-  int eval(Address pc, const SymbolTable<uint16_t>& symbols, bool throwUndefined);
+  // If throwUndefined is false, this method returns an empty Maybe<Address> if the
+  // expression cannot // be resolved due to one or more undefined symbols. Any other
+  // error condition always throws a SourceError.
+  Maybe<Address> eval(Context& context, bool throwUndefined);
 
   void dump(std::ostream& s, int level = 0) const noexcept override;
 
@@ -433,9 +434,8 @@ class ExprNode : public Node
 public:
   ExprNode(SourcePos pos) : Node(pos) { }
 
-  virtual int value() const noexcept { return -1; }
-  virtual int checkValue() const { return value(); }
-  virtual std::unique_ptr<ExprNode> eval(Address pc, const SymbolTable<uint16_t>& symbols, bool throwUndefined) { return nullptr; }
+  virtual Maybe<Address> value() const noexcept { return nullptr; }
+  virtual std::unique_ptr<ExprNode> eval(Context& context, bool throwUndefined) { return nullptr; }
 };
 
 // ----------------------------------------------------------------------------
@@ -447,8 +447,7 @@ class ExprConstant : public ExprNode
 public:
   ExprConstant(SourcePos pos, int value) : ExprNode(pos), value_(value) { }
 
-  int value() const noexcept override { return value_; }
-  int checkValue() const override;
+  Maybe<Address> value() const noexcept override { return value_; }
   void dump(std::ostream& s, int indent = 0) const noexcept override;
 
 private:
@@ -464,7 +463,7 @@ class ExprSymbol : public ExprNode
 public:
   ExprSymbol(SourcePos pos, const std::string& name) : ExprNode(pos), name_(name) { }
 
-  std::unique_ptr<ExprNode> eval(Address pc, const SymbolTable<uint16_t>& symbols, bool throwUndefined) override;
+  std::unique_ptr<ExprNode> eval(Context& context, bool throwUndefined) override;
   void dump(std::ostream& s, int indent = 0) const noexcept override;
 
 private:
@@ -481,7 +480,7 @@ public:
   ExprTemporarySymbol(SourcePos pos, BranchDirection direction, size_t count)
     : ExprNode(pos), direction_(direction), count_(count) { }
 
-  std::unique_ptr<ExprNode> eval(Address pc, const SymbolTable<uint16_t>& symbols, bool throwUndefined) override;
+  std::unique_ptr<ExprNode> eval(Context& context, bool throwUndefined) override;
   void dump(std::ostream& s, int indent = 0) const noexcept override;
 
 private:
@@ -498,7 +497,7 @@ class ExprProgramCounter : public ExprNode
 public:
   ExprProgramCounter(SourcePos pos) : ExprNode(pos) { }
 
-  std::unique_ptr<ExprNode> eval(Address pc, const SymbolTable<uint16_t>& symbols, bool throwUndefined) override;
+  std::unique_ptr<ExprNode> eval(Context& context, bool throwUndefined) override;
   void dump(std::ostream& s, int indent = 0) const noexcept override;
 };
 
@@ -514,7 +513,7 @@ public:
   ExprOperator(SourcePos pos, std::unique_ptr<ExprNode> left, std::unique_ptr<ExprNode> right, char op, Handler handler)
     : ExprNode(pos), left_(std::move(left)), right_(std::move(right)), op_(op), handler_(handler) { }
 
-  std::unique_ptr<ExprNode> eval(Address pc, const SymbolTable<uint16_t>& symbols, bool throwUndefined) override;
+  std::unique_ptr<ExprNode> eval(Context& context, bool throwUndefined) override;
   void dump(std::ostream& s, int indent = 0) const noexcept override;
 
 private:

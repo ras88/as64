@@ -4,6 +4,7 @@
 #include "source.h"
 #include "ast.h"
 #include "message.h"
+#include "table.h"
 
 namespace cassm
 {
@@ -12,21 +13,16 @@ namespace cassm
 //      Context
 // ----------------------------------------------------------------------------
 
-class Context
+struct Context
 {
-public:
-  Context();
-  Context(const Context&) = delete;
-  Context& operator=(const Context&) = delete;
+  Context() : pc(0) { }
 
-  SourceStream& source() { return source_; }
-  StatementList& statements() { return statements_; }
-  MessageList& messages() { return messages_; }
+  SourceStream source;
+  StatementList statements;
+  MessageList messages;
+  SymbolTable<Address> symbols;
 
-private:
-  SourceStream source_;
-  StatementList statements_;
-  MessageList messages_;
+  Address pc;
 };
 
 }

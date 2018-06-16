@@ -8,7 +8,6 @@ add_executable(cassm
 	instruction.cpp
 	buffer.cpp
 	ast.cpp
-	context.cpp
 	parser.cpp
 	define.cpp
 	main.cpp

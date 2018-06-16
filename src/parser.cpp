@@ -67,18 +67,18 @@ Parser::Parser(Context& context)
 
 void Parser::file(const std::string& filename)
 {
-  context_.source().includeFile(filename);
+  context_.source.includeFile(filename);
 }
 
 void Parser::parse()
 {
   Line *line;
-  while((line = context_.source().nextLine()) != nullptr)
+  while((line = context_.source.nextLine()) != nullptr)
   {
     try
     {
       LineReader reader(*line);
-      context_.statements().add(handleStatement(reader));
+      context_.statements.add(handleStatement(reader));
       
       // TODO: possibly support ':' for multiple statements on a single line
       auto token = reader.nextToken();
@@ -87,7 +87,7 @@ void Parser::parse()
     }
     catch (SourceError& err)
     {
-      context_.messages().add(Severity::Error, err.pos(), err.message());
+      context_.messages.add(Severity::Error, err.pos(), err.message());
     }
   }
 }
@@ -320,7 +320,7 @@ std::unique_ptr<Statement> Parser::handleSeq(LineReader& reader, SourcePos pos)
     throwSourceError(token.pos, "Expected a quoted filename");
   try
   {
-    context_.source().includeFile(token.text);
+    context_.source.includeFile(token.text);
     return std::make_unique<EmptyStatement>(pos);
   }
   catch (SystemError& err)
@@ -345,7 +345,7 @@ std::unique_ptr<Statement> Parser::handleUnsupported(LineReader& reader, SourceP
     token = reader.nextToken();
   }
   while (token.type != TokenType::End);                 // TODO: adjust logic if ':' is supported
-  context_.messages().warning(pos, "Ignored unsupported statement");
+  context_.messages.warning(pos, "Ignored unsupported statement");
   return std::make_unique<EmptyStatement>(pos);
 }
 

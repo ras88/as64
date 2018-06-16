@@ -1,5 +1,6 @@
 #include <iostream>
 #include "enum.h"
+#include "context.h"
 #include "ast.h"
 
 namespace cassm
@@ -353,7 +354,16 @@ void StatementList::add(std::unique_ptr<Statement> statement) noexcept
 void StatementList::accept(StatementVisitor& visitor) const
 {
   for (const auto& statement: statements_)
-    statement->accept(visitor);
+  {
+    try
+    {
+      statement->accept(visitor);
+    }
+    catch (SourceError& err)
+    {
+      visitor.uncaught(err);
+    }
+  }
 }
 
 void StatementList::dump(std::ostream& s, int level) const noexcept
@@ -365,12 +375,12 @@ void StatementList::dump(std::ostream& s, int level) const noexcept
 //      Expression
 // ----------------------------------------------------------------------------
 
-int Expression::eval(Address pc, const SymbolTable<uint16_t>& symbols, bool throwUndefined)
+Maybe<Address> Expression::eval(Context& context, bool throwUndefined)
 {
-  auto root = root_->eval(pc, symbols, throwUndefined);
+  auto root = root_->eval(context, throwUndefined);
   if (root)
     root_ = std::move(root);
-  return root_->checkValue();
+  return root_->value();
 }
 
 void Expression::dump(std::ostream& s, int level) const noexcept
@@ -384,14 +394,6 @@ void Expression::dump(std::ostream& s, int level) const noexcept
 //      ExprConstant
 // ----------------------------------------------------------------------------
 
-int ExprConstant::checkValue() const
-{
-  int value = this->value();
-  if (value < 0 || value > 0xffff)
-    throwSourceError(pos(), "Invalid expression result (%d); expected a number between 0 and 65535", value);
-  return value;
-}
-
 void ExprConstant::dump(std::ostream& s, int level) const noexcept
 {
   indent(s, level);
@@ -402,9 +404,9 @@ void ExprConstant::dump(std::ostream& s, int level) const noexcept
 //      ExprSymbol
 // ----------------------------------------------------------------------------
 
-std::unique_ptr<ExprNode> ExprSymbol::eval(Address pc, const SymbolTable<uint16_t>& symbols, bool throwUndefined)
+std::unique_ptr<ExprNode> ExprSymbol::eval(Context& context, bool throwUndefined)
 {
-  auto *value = symbols.get(name_);
+  auto *value = context.symbols.get(name_);
   if (! value)
   {
     if (! throwUndefined)
@@ -424,7 +426,7 @@ void ExprSymbol::dump(std::ostream& s, int level) const noexcept
 //      ExprTemporarySymbol
 // ----------------------------------------------------------------------------
 
-std::unique_ptr<ExprNode> ExprTemporarySymbol::eval(Address pc, const SymbolTable<uint16_t>& symbols, bool throwUndefined)
+std::unique_ptr<ExprNode> ExprTemporarySymbol::eval(Context& context, bool throwUndefined)
 {
   // TODO
   return std::make_unique<ExprConstant>(pos(), 0);
@@ -441,9 +443,9 @@ void ExprTemporarySymbol::dump(std::ostream& s, int level) const noexcept
 //      ExprProgramCounter
 // ----------------------------------------------------------------------------
 
-std::unique_ptr<ExprNode> ExprProgramCounter::eval(Address pc, const SymbolTable<uint16_t>& symbols, bool throwUndefined)
+std::unique_ptr<ExprNode> ExprProgramCounter::eval(Context& context, bool throwUndefined)
 {
-  return std::make_unique<ExprConstant>(pos(), pc);
+  return std::make_unique<ExprConstant>(pos(), context.pc);
 }
 
 void ExprProgramCounter::dump(std::ostream& s, int level) const noexcept
@@ -456,18 +458,23 @@ void ExprProgramCounter::dump(std::ostream& s, int level) const noexcept
 //      ExprOperator
 // ----------------------------------------------------------------------------
 
-std::unique_ptr<ExprNode> ExprOperator::eval(Address pc, const SymbolTable<uint16_t>& symbols, bool throwUndefined)
+std::unique_ptr<ExprNode> ExprOperator::eval(Context& context, bool throwUndefined)
 {
-  auto left = left_->eval(pc, symbols, throwUndefined);
-  auto right = right_->eval(pc, symbols, throwUndefined);
+  auto left = left_->eval(context, throwUndefined);
+  auto right = right_->eval(context, throwUndefined);
   if (left)
     left_ = std::move(left);
   if (right)
     right_ = std::move(right);
 
   auto a = left_->value(), b = right_->value();
-  if (a != -1 && b != -1)
-    return std::make_unique<ExprConstant>(pos(), handler_(a, b));
+  if (a && b)
+  {
+    auto result = handler_(*a, *b);
+    if (result < 0 || result > 0xffff)
+      throwSourceError(pos(), "Invalid operation result (%d); expected a number between 0 and 65535", result);
+    return std::make_unique<ExprConstant>(pos(), handler_(*a, *b));
+  }
 
   return nullptr;
 }

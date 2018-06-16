@@ -34,7 +34,11 @@ public:
   void visit(const WordDirective& node) override;
   void visit(const StringDirective& node) override;
 
+  void uncaught(SourceError& err) override;
+
 private:
+  void processLabel(const Statement& node);
+
   Context& context_;
 };
 
@@ -45,7 +49,7 @@ DefinitionPass::DefinitionPass(Context& context)
 
 void DefinitionPass::run()
 {
-  context_.statements().accept(*this);
+  context_.statements.accept(*this);
 }
 
 void DefinitionPass::visit(const SymbolDefinition& node)
@@ -58,58 +62,83 @@ void DefinitionPass::visit(const ProgramCounterAssignment& node)
 
 void DefinitionPass::visit(const ImpliedOperation& node)
 {
+  processLabel(node);
 }
 
 void DefinitionPass::visit(const ImmediateOperation& node)
 {
+  processLabel(node);
 }
 
 void DefinitionPass::visit(const AccumulatorOperation& node)
 {
+  processLabel(node);
 }
 
 void DefinitionPass::visit(const DirectOperation& node)
 {
+  processLabel(node);
 }
 
 void DefinitionPass::visit(const IndirectOperation& node)
 {
+  processLabel(node);
 }
 
 void DefinitionPass::visit(const BranchOperation& node)
 {
+  processLabel(node);
 }
 
 void DefinitionPass::visit(const OriginDirective& node)
 {
+  processLabel(node);
 }
 
 void DefinitionPass::visit(const BufferDirective& node)
 {
+  processLabel(node);
 }
 
 void DefinitionPass::visit(const OffsetBeginDirective& node)
 {
+  processLabel(node);
 }
 
 void DefinitionPass::visit(const OffsetEndDirective& node)
 {
+  processLabel(node);
 }
 
 void DefinitionPass::visit(const ObjectFileDirective& node)
 {
+  processLabel(node);
 }
 
 void DefinitionPass::visit(const ByteDirective& node)
 {
+  processLabel(node);
 }
 
 void DefinitionPass::visit(const WordDirective& node)
 {
+  processLabel(node);
 }
 
 void DefinitionPass::visit(const StringDirective& node)
 {
+  processLabel(node);
+}
+
+void DefinitionPass::uncaught(SourceError& err)
+{
+  context_.messages.add(Severity::Error, err.pos(), err.message());
+}
+
+void DefinitionPass::processLabel(const Statement& node)
+{
+  // TODO: remember not to add '+', etc. to symbol table!
+
 }
 
 void define(Context& context)
