@@ -19,6 +19,15 @@ enum class ByteSelector
   High
 };
 
+// ----------------------------------------------------------------------------
+//      BranchDirection
+// ----------------------------------------------------------------------------
+
+enum class BranchDirection
+{
+  Forward,
+  Backward
+};
 
 }
 #endif

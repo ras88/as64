@@ -72,6 +72,7 @@ public:
   bool supports(AddrMode mode) const noexcept { return isValid(opcode(mode)); }
   Opcode opcode(AddrMode mode) const noexcept { return opcodes_[static_cast<int>(mode)]; }
   bool isRelative() const noexcept { return isValid(opcode(AddrMode::Relative)); }
+  bool isImplied() const noexcept { return isValid(opcode(AddrMode::Implied)); }
 
   // All of the encoding methods return the number of bytes written, or 0 to indicate that no
   // compatible addressing mode exists for the instruction.

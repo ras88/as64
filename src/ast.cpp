@@ -58,6 +58,17 @@ void ProgramCounterAssignment::dump(std::ostream& s, int level) const noexcept
 }
 
 // ----------------------------------------------------------------------------
+//      ImpliedOperation
+// ----------------------------------------------------------------------------
+
+void ImpliedOperation::dump(std::ostream& s, int level) const noexcept
+{
+  indent(s, level);
+  prefixLabel(s);
+  s << "Implied Mode Instruction: " << instruction().name();
+}
+
+// ----------------------------------------------------------------------------
 //      ImmediateOperation
 // ----------------------------------------------------------------------------
 
@@ -84,6 +95,17 @@ void ImmediateOperation::dump(std::ostream& s, int level) const noexcept
 }
 
 // ----------------------------------------------------------------------------
+//      AccumulatorOperation
+// ----------------------------------------------------------------------------
+
+void AccumulatorOperation::dump(std::ostream& s, int level) const noexcept
+{
+  indent(s, level);
+  prefixLabel(s);
+  s << "Accumulator Mode Instruction: " << instruction().name();
+}
+
+// ----------------------------------------------------------------------------
 //      DirectOperation
 // ----------------------------------------------------------------------------
 
@@ -107,6 +129,32 @@ void DirectOperation::dump(std::ostream& s, int level) const noexcept
   }
   if (forceAbsolute_)
     s << " [Force Absolute]";
+  s << std::endl;
+  expr_->dump(s, level + 2);
+}
+
+// ----------------------------------------------------------------------------
+//      IndirectOperation
+// ----------------------------------------------------------------------------
+
+void IndirectOperation::dump(std::ostream& s, int level) const noexcept
+{
+  indent(s, level);
+  prefixLabel(s);
+  s << "Indirect Mode Instruction: " << instruction().name();
+  switch (index_)
+  {
+    case IndexRegister::X:
+      s << " [,X]";
+      break;
+
+    case IndexRegister::Y:
+      s << " [,Y]";
+      break;
+
+    default:
+      break;
+  }
   s << std::endl;
   expr_->dump(s, level + 2);
 }
@@ -199,6 +247,23 @@ void ExprSymbol::dump(std::ostream& s, int level) const noexcept
 {
   indent(s, level);
   s << "Symbol: " << name_;
+}
+
+// ----------------------------------------------------------------------------
+//      ExprTemporarySymbol
+// ----------------------------------------------------------------------------
+
+std::unique_ptr<ExprNode> ExprTemporarySymbol::eval(Address pc, const SymbolTable<uint16_t>& symbols, bool throwUndefined)
+{
+  // TODO
+  return std::make_unique<ExprConstant>(pos(), 0);
+}
+
+void ExprTemporarySymbol::dump(std::ostream& s, int level) const noexcept
+{
+  indent(s, level);
+  s << (direction_ == BranchDirection::Backward ? "Backward Temporary Symbol" : "Forward Temporary Symbol");
+  s << ": count=" << count_;
 }
 
 // ----------------------------------------------------------------------------

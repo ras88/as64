@@ -137,6 +137,7 @@ public:
   LineReader(const Line& line) noexcept;
 
   Token nextToken();
+  void expectPunctuator(char c);
   void unget(Token& token) noexcept;
 
   const Line& line() const noexcept { return line_; }

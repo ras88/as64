@@ -105,6 +105,18 @@ private:
 };
 
 // ----------------------------------------------------------------------------
+//      ImpliedOperation
+// ----------------------------------------------------------------------------
+
+class ImpliedOperation : public Operation
+{
+public:
+  ImpliedOperation(SourcePos pos, Instruction& instruction) noexcept : Operation(pos, instruction) { }
+
+  void dump(std::ostream& s, int level = 0) const noexcept override;
+};
+
+// ----------------------------------------------------------------------------
 //      ImmediateOperation
 // ----------------------------------------------------------------------------
 
@@ -119,6 +131,18 @@ public:
 private:
   ByteSelector selector_;
   std::unique_ptr<Expression> expr_;
+};
+
+// ----------------------------------------------------------------------------
+//      AccumulatorOperation
+// ----------------------------------------------------------------------------
+
+class AccumulatorOperation : public Operation
+{
+public:
+  AccumulatorOperation(SourcePos pos, Instruction& instruction) noexcept : Operation(pos, instruction) { }
+
+  void dump(std::ostream& s, int level = 0) const noexcept override;
 };
 
 // ----------------------------------------------------------------------------
@@ -137,6 +161,23 @@ public:
 private:
   IndexRegister index_;
   bool forceAbsolute_;
+  std::unique_ptr<Expression> expr_;
+};
+
+// ----------------------------------------------------------------------------
+//      IndirectOperation
+// ----------------------------------------------------------------------------
+
+class IndirectOperation : public Operation
+{
+public:
+  IndirectOperation(SourcePos pos, Instruction& instruction, IndexRegister index, std::unique_ptr<Expression> expr) noexcept
+    : Operation(pos, instruction), index_(index), expr_(std::move(expr)) { }
+
+  void dump(std::ostream& s, int level = 0) const noexcept override;
+
+private:
+  IndexRegister index_;
   std::unique_ptr<Expression> expr_;
 };
 
@@ -248,6 +289,24 @@ public:
 
 private:
   std::string name_;
+};
+
+// ----------------------------------------------------------------------------
+//      ExprTemporarySymbol
+// ----------------------------------------------------------------------------
+
+class ExprTemporarySymbol : public ExprNode
+{
+public:
+  ExprTemporarySymbol(SourcePos pos, BranchDirection direction, size_t count)
+    : ExprNode(pos), direction_(direction), count_(count) { }
+
+  std::unique_ptr<ExprNode> eval(Address pc, const SymbolTable<uint16_t>& symbols, bool throwUndefined) override;
+  void dump(std::ostream& s, int indent = 0) const noexcept override;
+
+private:
+  BranchDirection direction_;
+  size_t count_;
 };
 
 // ----------------------------------------------------------------------------

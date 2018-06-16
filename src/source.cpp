@@ -190,7 +190,7 @@ Token LineReader::nextToken()
   if (std::isalpha(c) || c == '_' || c == '\'')
   {
     token.text += c;
-    while ((c = get()) == '$' || c == '_' || c == '\'' || std::isalpha(c))
+    while ((c = get()) == '$' || c == '_' || c == '\'' || std::isalnum(c))
       token.text += c;
     if (c != -1)
       unget();
@@ -287,6 +287,13 @@ Token LineReader::nextToken()
   token.punctuator = c;
   token.type = TokenType::Punctuator;
   return token;
+}
+
+void LineReader::expectPunctuator(char c)
+{
+  auto token = nextToken();
+  if (token.type != TokenType::Punctuator || token.punctuator != c)
+    throwSourceError(token.pos, "Expected '%c'", c);
 }
 
 void LineReader::unget(Token& token) noexcept

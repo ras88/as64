@@ -68,7 +68,7 @@ constexpr int ____ = -1;
 
 static InstructionDef g_table[] =
 {
-  // Opcode     Accum   Immed   Imply   Rel     Abs     AbsX    AbsY    zp      zp,x    zp,y    Indir   (a, x)  (a),y
+  // Opcode   Accum   Immed   Imply   Rel     Abs     AbsX    AbsY    zp      zp,x    zp,y    Indir   (a, x)  (a),y
   { "adc",    ____,   0x69,   ____,   ____,   0x6d,   0x7d,   0x79,   0x65,   0x75,   ____,   ____,   0x61,   0x71  },
   { "and",    ____,   0x29,   ____,   ____,   0x2d,   0x3d,   0x39,   0x25,   0x35,   ____,   ____,   0x21,   0x31  },
   { "asl",    0x0a,   ____,   ____,   ____,   0x0e,   0x1e,   ____,   0x06,   0x16,   ____,   ____,   ____,   ____  },
