@@ -2,10 +2,11 @@
 #define _INCLUDED_CASSM_PARSER_H
 
 #include <string>
-#include "context.h"
 
 namespace cassm
 {
+
+class Context;
 
 void parseFile(Context& context, const std::string& filename);
 

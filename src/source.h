@@ -138,6 +138,7 @@ public:
 
   Token nextToken();
   void expectPunctuator(char c);
+  bool optionalPunctuator(char c);
   void unget(Token& token) noexcept;
 
   const Line& line() const noexcept { return line_; }

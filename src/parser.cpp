@@ -3,6 +3,7 @@
 #include "error.h"
 #include "table.h"
 #include "parser.h"
+#include "context.h"
 
 namespace cassm
 {
@@ -29,10 +30,18 @@ private:
   std::unique_ptr<Operation> handleDirect(LineReader& reader, Instruction& ins, SourcePos insPos, bool forceAbsolute);
   std::unique_ptr<Operation> handleIndirect(LineReader& reader, Instruction& ins, SourcePos insPos);
   std::unique_ptr<Operation> handleRelative(LineReader& reader, Instruction& ins, SourcePos insPos);
-  std::unique_ptr<Directive> handleDirective(LineReader& reader);
-  std::unique_ptr<Directive> handleOrg(LineReader& reader);
-  std::unique_ptr<Directive> handleBuf(LineReader& reader);
-  std::unique_ptr<Directive> handleSeq(LineReader& reader);
+  std::unique_ptr<Statement> handleDirective(LineReader& reader);
+  std::unique_ptr<Statement> handleOrg(LineReader& reader, SourcePos pos);
+  std::unique_ptr<Statement> handleOff(LineReader& reader, SourcePos pos);
+  std::unique_ptr<Statement> handleOfe(LineReader& reader, SourcePos pos);
+  std::unique_ptr<Statement> handleBuf(LineReader& reader, SourcePos pos);
+  std::unique_ptr<Statement> handleByte(LineReader& reader, SourcePos pos);
+  std::unique_ptr<Statement> handleWord(LineReader& reader, SourcePos pos);
+  std::unique_ptr<Statement> handleAsc(LineReader& reader, SourcePos pos);
+  std::unique_ptr<Statement> handleScr(LineReader& reader, SourcePos pos);
+  std::unique_ptr<Statement> handleSeq(LineReader& reader, SourcePos pos);
+  std::unique_ptr<Statement> handleObj(LineReader& reader, SourcePos pos);
+  std::unique_ptr<Statement> handleUnsupported(LineReader& reader, SourcePos pos);
   std::unique_ptr<Expression> parseExpression(LineReader& reader, bool optional = false);
   std::unique_ptr<ExprNode> parseOperand(LineReader& reader, bool optional = false);
   ByteSelector optionalByteSelector(LineReader& reader);
@@ -40,7 +49,7 @@ private:
 
   Context& context_;
 
-  using DirectiveHandler = std::unique_ptr<Directive> (Parser::*)(LineReader& reader);
+  using DirectiveHandler = std::unique_ptr<Statement> (Parser::*)(LineReader& reader, SourcePos pos);
   static SymbolTable<DirectiveHandler> directives_;
 };
 
@@ -69,11 +78,12 @@ void Parser::parse()
     try
     {
       LineReader reader(*line);
-      auto statement = handleStatement(reader);
-      if (statement)
-        context_.statements().add(std::move(statement));
-
-      // TODO: ensure we're at end of line
+      context_.statements().add(handleStatement(reader));
+      
+      // TODO: possibly support ':' for multiple statements on a single line
+      auto token = reader.nextToken();
+      if (token.type != TokenType::End)
+        throwSourceError(token.pos, "Unexpected character");
     }
     catch (SourceError& err)
     {
@@ -116,8 +126,7 @@ std::unique_ptr<Statement> Parser::handleStatement(LineReader& reader)
     }
   }
 
-  // TODO: throw
-  return nullptr;
+  return std::make_unique<EmptyStatement>(first.pos);
 }
 
 std::unique_ptr<Statement> Parser::handleInstructionOrDirective(LineReader& reader, const std::string& label,
@@ -230,7 +239,7 @@ std::unique_ptr<Operation> Parser::handleRelative(LineReader& reader, Instructio
   return std::make_unique<BranchOperation>(insPos, ins, parseExpression(reader));
 }
 
-std::unique_ptr<Directive> Parser::handleDirective(LineReader& reader)
+std::unique_ptr<Statement> Parser::handleDirective(LineReader& reader)
 {
   auto token = reader.nextToken();
   if (token.type != TokenType::Identifier)
@@ -240,22 +249,71 @@ std::unique_ptr<Directive> Parser::handleDirective(LineReader& reader)
   if (! handler)
     throwSourceError(token.pos, "Unknown directive '%s'", token.text.c_str());
 
-  return (this->**handler)(reader);
+  return (this->**handler)(reader, token.pos);
 }
 
-std::unique_ptr<Directive> Parser::handleOrg(LineReader& reader)
+std::unique_ptr<Statement> Parser::handleOrg(LineReader& reader, SourcePos pos)
 {
-// TODO  writer_.pc(evalExpression(reader));
-  return nullptr;
+  return std::make_unique<OriginDirective>(pos, parseExpression(reader));
 }
 
-std::unique_ptr<Directive> Parser::handleBuf(LineReader& reader)
+std::unique_ptr<Statement> Parser::handleOff(LineReader& reader, SourcePos pos)
 {
-// TODO  writer_.fill(evalExpression(reader));
-  return nullptr;
+  return std::make_unique<OffsetBeginDirective>(pos, parseExpression(reader));
 }
 
-std::unique_ptr<Directive> Parser::handleSeq(LineReader& reader)
+std::unique_ptr<Statement> Parser::handleOfe(LineReader& reader, SourcePos pos)
+{
+  return std::make_unique<OffsetEndDirective>(pos);
+}
+
+std::unique_ptr<Statement> Parser::handleBuf(LineReader& reader, SourcePos pos)
+{
+  return std::make_unique<BufferDirective>(pos, parseExpression(reader));
+}
+
+std::unique_ptr<Statement> Parser::handleByte(LineReader& reader, SourcePos pos)
+{
+  auto selector = optionalByteSelector(reader);
+  std::vector<std::unique_ptr<Expression>> args;
+  Token token;
+  do
+  {
+    args.push_back(parseExpression(reader));
+  }
+  while (reader.optionalPunctuator(','));
+  return std::make_unique<ByteDirective>(pos, selector, std::move(args));
+}
+
+std::unique_ptr<Statement> Parser::handleWord(LineReader& reader, SourcePos pos)
+{
+  std::vector<std::unique_ptr<Expression>> args;
+  Token token;
+  do
+  {
+    args.push_back(parseExpression(reader));
+  }
+  while (reader.optionalPunctuator(','));
+  return std::make_unique<WordDirective>(pos, std::move(args));
+}
+
+std::unique_ptr<Statement> Parser::handleAsc(LineReader& reader, SourcePos pos)
+{
+  auto token = reader.nextToken();
+  if (token.type != TokenType::Literal)
+    throwSourceError(token.pos, "Expected a quoted string");
+  return std::make_unique<StringDirective>(pos, StringEncoding::Petscii, token.text);
+}
+
+std::unique_ptr<Statement> Parser::handleScr(LineReader& reader, SourcePos pos)
+{
+  auto token = reader.nextToken();
+  if (token.type != TokenType::Literal)
+    throwSourceError(token.pos, "Expected a quoted string");
+  return std::make_unique<StringDirective>(pos, StringEncoding::Screen, token.text);
+}
+
+std::unique_ptr<Statement> Parser::handleSeq(LineReader& reader, SourcePos pos)
 {
   auto token = reader.nextToken();
   if (token.type != TokenType::Literal)
@@ -263,12 +321,32 @@ std::unique_ptr<Directive> Parser::handleSeq(LineReader& reader)
   try
   {
     context_.source().includeFile(token.text);
-    return nullptr;
+    return std::make_unique<EmptyStatement>(pos);
   }
   catch (SystemError& err)
   {
     throwSourceError(token.pos, "%s", err.message().c_str());
   }
+}
+
+std::unique_ptr<Statement> Parser::handleObj(LineReader& reader, SourcePos pos)
+{
+  auto token = reader.nextToken();
+  if (token.type != TokenType::Literal)
+    throwSourceError(token.pos, "Expected a quoted filename");
+  return std::make_unique<ObjectFileDirective>(pos, token.text);
+}
+
+std::unique_ptr<Statement> Parser::handleUnsupported(LineReader& reader, SourcePos pos)
+{
+  Token token;
+  do
+  {
+    token = reader.nextToken();
+  }
+  while (token.type != TokenType::End);                 // TODO: adjust logic if ':' is supported
+  context_.messages().warning(pos, "Ignored unsupported statement");
+  return std::make_unique<EmptyStatement>(pos);
 }
 
 std::unique_ptr<Expression> Parser::parseExpression(LineReader& reader, bool optional)
@@ -412,8 +490,30 @@ IndexRegister Parser::optionalIndex(LineReader& reader, SourcePos *pos)
 SymbolTable<Parser::DirectiveHandler> Parser::directives_([](auto& table)
 {
   table.emplace("org",      &Parser::handleOrg);
+  table.emplace("off",      &Parser::handleOff);
+  table.emplace("ofe",      &Parser::handleOfe);
   table.emplace("buf",      &Parser::handleBuf);
+  table.emplace("byte",     &Parser::handleByte);
+  table.emplace("word",     &Parser::handleWord);
+  table.emplace("asc",      &Parser::handleAsc);
+  table.emplace("scr",      &Parser::handleScr);
   table.emplace("seq",      &Parser::handleSeq);
+  table.emplace("obj",      &Parser::handleObj);
+  table.emplace("dvi",      &Parser::handleUnsupported);
+  table.emplace("dvo",      &Parser::handleUnsupported);
+  table.emplace("burst",    &Parser::handleUnsupported);
+  table.emplace("mem",      &Parser::handleUnsupported);
+  table.emplace("dis",      &Parser::handleUnsupported);
+  table.emplace("out",      &Parser::handleUnsupported);
+  table.emplace("bas",      &Parser::handleUnsupported);
+  table.emplace("link",     &Parser::handleUnsupported);
+  table.emplace("loop",     &Parser::handleUnsupported);
+  table.emplace("file",     &Parser::handleUnsupported);
+  table.emplace("lst",      &Parser::handleUnsupported);
+  table.emplace("top",      &Parser::handleUnsupported);
+  table.emplace("sst",      &Parser::handleUnsupported);
+  table.emplace("psu",      &Parser::handleUnsupported);
+  table.emplace("fas",      &Parser::handleUnsupported);
 });
 
 }

@@ -1,5 +1,7 @@
 add_executable(cassm
+	types.cpp
 	str.cpp
+	enum.cpp
 	error.cpp
 	message.cpp
 	source.cpp
@@ -8,6 +10,7 @@ add_executable(cassm
 	ast.cpp
 	context.cpp
 	parser.cpp
+	define.cpp
 	main.cpp
 )
 

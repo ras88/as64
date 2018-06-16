@@ -1,11 +1,33 @@
 #include <iostream>
-#include "error.h"
+#include "enum.h"
 #include "ast.h"
 
 namespace cassm
 {
 
-constexpr int MaxHeaderWidth = 20;
+constexpr int MaxHeaderWidth = 28;
+
+static EnumTags<ByteSelector> g_byteSelectorTags =
+{
+  { ByteSelector::Low,                " [LSB]" },
+  { ByteSelector::High,               " [MSB]" }
+};
+
+static EnumTags<IndexRegister> g_indexRegisterTags =
+{
+  { IndexRegister::X,                 " [,X]" },
+  { IndexRegister::Y,                 " [,Y]" }
+};
+
+template<typename T> static void dumpList(std::ostream& s, const std::vector<std::unique_ptr<T>>& items, int level)
+{
+  for (size_t index = 0; index < items.size(); ++ index)
+  {
+    if (index)
+      s << std::endl;
+    items[index]->dump(s, level);
+  }
+}
 
 // ----------------------------------------------------------------------------
 //      Node
@@ -36,8 +58,27 @@ void Statement::prefixLabel(std::ostream& s) const noexcept
 }
 
 // ----------------------------------------------------------------------------
+//      EmptyStatement
+// ----------------------------------------------------------------------------
+
+void EmptyStatement::accept(StatementVisitor& visitor) const
+{
+}
+
+void EmptyStatement::dump(std::ostream& s, int level) const noexcept
+{
+  indent(s, level);
+  s << "Empty Statement";
+}
+
+// ----------------------------------------------------------------------------
 //      SymbolDefinition
 // ----------------------------------------------------------------------------
+
+void SymbolDefinition::accept(StatementVisitor& visitor) const
+{
+  visitor.visit(*this);
+}
 
 void SymbolDefinition::dump(std::ostream& s, int level) const noexcept
 {
@@ -50,6 +91,11 @@ void SymbolDefinition::dump(std::ostream& s, int level) const noexcept
 //      ProgramCounterAssignment
 // ----------------------------------------------------------------------------
 
+void ProgramCounterAssignment::accept(StatementVisitor& visitor) const
+{
+  visitor.visit(*this);
+}
+
 void ProgramCounterAssignment::dump(std::ostream& s, int level) const noexcept
 {
   indent(s, level);
@@ -60,6 +106,11 @@ void ProgramCounterAssignment::dump(std::ostream& s, int level) const noexcept
 // ----------------------------------------------------------------------------
 //      ImpliedOperation
 // ----------------------------------------------------------------------------
+
+void ImpliedOperation::accept(StatementVisitor& visitor) const
+{
+  visitor.visit(*this);
+}
 
 void ImpliedOperation::dump(std::ostream& s, int level) const noexcept
 {
@@ -72,31 +123,27 @@ void ImpliedOperation::dump(std::ostream& s, int level) const noexcept
 //      ImmediateOperation
 // ----------------------------------------------------------------------------
 
+void ImmediateOperation::accept(StatementVisitor& visitor) const
+{
+  visitor.visit(*this);
+}
+
 void ImmediateOperation::dump(std::ostream& s, int level) const noexcept
 {
   indent(s, level);
   prefixLabel(s);
-  s << "Immediate Mode Instruction: " << instruction().name();
-  switch (selector_)
-  {
-    case ByteSelector::Low:
-      s << " [LSB]";
-      break;
-
-    case ByteSelector::High:
-      s << " [MSB]";
-      break;
-
-    default:
-      break;
-  }
-  s << std::endl;
+  s << "Immediate Mode Instruction: " << instruction().name() << g_byteSelectorTags.fromValue(selector_) << std::endl;
   expr_->dump(s, level + 2);
 }
 
 // ----------------------------------------------------------------------------
 //      AccumulatorOperation
 // ----------------------------------------------------------------------------
+
+void AccumulatorOperation::accept(StatementVisitor& visitor) const
+{
+  visitor.visit(*this);
+}
 
 void AccumulatorOperation::dump(std::ostream& s, int level) const noexcept
 {
@@ -109,24 +156,16 @@ void AccumulatorOperation::dump(std::ostream& s, int level) const noexcept
 //      DirectOperation
 // ----------------------------------------------------------------------------
 
+void DirectOperation::accept(StatementVisitor& visitor) const
+{
+  visitor.visit(*this);
+}
+
 void DirectOperation::dump(std::ostream& s, int level) const noexcept
 {
   indent(s, level);
   prefixLabel(s);
-  s << "Direct Mode Instruction: " << instruction().name();
-  switch (index_)
-  {
-    case IndexRegister::X:
-      s << " [,X]";
-      break;
-
-    case IndexRegister::Y:
-      s << " [,Y]";
-      break;
-
-    default:
-      break;
-  }
+  s << "Direct Mode Instruction: " << instruction().name() << g_indexRegisterTags.fromValue(index_);
   if (forceAbsolute_)
     s << " [Force Absolute]";
   s << std::endl;
@@ -137,25 +176,16 @@ void DirectOperation::dump(std::ostream& s, int level) const noexcept
 //      IndirectOperation
 // ----------------------------------------------------------------------------
 
+void IndirectOperation::accept(StatementVisitor& visitor) const
+{
+  visitor.visit(*this);
+}
+
 void IndirectOperation::dump(std::ostream& s, int level) const noexcept
 {
   indent(s, level);
   prefixLabel(s);
-  s << "Indirect Mode Instruction: " << instruction().name();
-  switch (index_)
-  {
-    case IndexRegister::X:
-      s << " [,X]";
-      break;
-
-    case IndexRegister::Y:
-      s << " [,Y]";
-      break;
-
-    default:
-      break;
-  }
-  s << std::endl;
+  s << "Indirect Mode Instruction: " << instruction().name() << g_indexRegisterTags.fromValue(index_) << std::endl;
   expr_->dump(s, level + 2);
 }
 
@@ -163,12 +193,152 @@ void IndirectOperation::dump(std::ostream& s, int level) const noexcept
 //      BranchOperation
 // ----------------------------------------------------------------------------
 
+void BranchOperation::accept(StatementVisitor& visitor) const
+{
+  visitor.visit(*this);
+}
+
 void BranchOperation::dump(std::ostream& s, int level) const noexcept
 {
   indent(s, level);
   prefixLabel(s);
   s << "Branch Instruction: " << instruction().name() << std::endl;
   expr_->dump(s, level + 2);
+}
+
+// ----------------------------------------------------------------------------
+//      OriginDirective
+// ----------------------------------------------------------------------------
+
+void OriginDirective::accept(StatementVisitor& visitor) const
+{
+  visitor.visit(*this);
+}
+
+void OriginDirective::dump(std::ostream& s, int level) const noexcept
+{
+  indent(s, level);
+  prefixLabel(s);
+  s << "Origin Directive" << std::endl;
+  expr_->dump(s, level + 2);
+}
+
+// ----------------------------------------------------------------------------
+//      BufferDirective
+// ----------------------------------------------------------------------------
+
+void BufferDirective::accept(StatementVisitor& visitor) const
+{
+  visitor.visit(*this);
+}
+
+void BufferDirective::dump(std::ostream& s, int level) const noexcept
+{
+  indent(s, level);
+  prefixLabel(s);
+  s << "Buffer Directive" << std::endl;
+  expr_->dump(s, level + 2);
+}
+
+// ----------------------------------------------------------------------------
+//      OffsetBeginDirective
+// ----------------------------------------------------------------------------
+
+void OffsetBeginDirective::accept(StatementVisitor& visitor) const
+{
+  visitor.visit(*this);
+}
+
+void OffsetBeginDirective::dump(std::ostream& s, int level) const noexcept
+{
+  indent(s, level);
+  prefixLabel(s);
+  s << "Offset Begin Directive" << std::endl;
+  expr_->dump(s, level + 2);
+}
+
+// ----------------------------------------------------------------------------
+//      OffsetEndDirective
+// ----------------------------------------------------------------------------
+
+void OffsetEndDirective::accept(StatementVisitor& visitor) const
+{
+  visitor.visit(*this);
+}
+
+void OffsetEndDirective::dump(std::ostream& s, int level) const noexcept
+{
+  indent(s, level);
+  prefixLabel(s);
+  s << "Offset End Directive";
+}
+
+// ----------------------------------------------------------------------------
+//      ObjectFileDirective
+// ----------------------------------------------------------------------------
+
+void ObjectFileDirective::accept(StatementVisitor& visitor) const
+{
+  visitor.visit(*this);
+}
+
+void ObjectFileDirective::dump(std::ostream& s, int level) const noexcept
+{
+  indent(s, level);
+  prefixLabel(s);
+  s << "Object File Directive: \"" << filename_ << '"';
+}
+
+// ----------------------------------------------------------------------------
+//      ByteDirective
+// ----------------------------------------------------------------------------
+
+void ByteDirective::accept(StatementVisitor& visitor) const
+{
+  visitor.visit(*this);
+}
+
+void ByteDirective::dump(std::ostream& s, int level) const noexcept
+{
+  indent(s, level);
+  prefixLabel(s);
+  s << args_.size() << " byte(s)" << g_byteSelectorTags.fromValue(selector_) << ':' << std::endl;
+  dumpList(s, args_, level + 2);
+}
+
+// ----------------------------------------------------------------------------
+//      WordDirective
+// ----------------------------------------------------------------------------
+
+void WordDirective::accept(StatementVisitor& visitor) const
+{
+  visitor.visit(*this);
+}
+
+void WordDirective::dump(std::ostream& s, int level) const noexcept
+{
+  indent(s, level);
+  prefixLabel(s);
+  s << args_.size() << " word(s):" << std::endl;
+  dumpList(s, args_, level + 2);
+}
+
+// ----------------------------------------------------------------------------
+//      StringDirective
+// ----------------------------------------------------------------------------
+
+void StringDirective::accept(StatementVisitor& visitor) const
+{
+  visitor.visit(*this);
+}
+
+void StringDirective::dump(std::ostream& s, int level) const noexcept
+{
+  indent(s, level);
+  prefixLabel(s);
+  s <<  str_.length() << " byte string [" << toString(encoding_) << ']' << std::endl;
+  indent(s, level + 2);
+  s << '"' << str_ << '"';
 }
 
 // ----------------------------------------------------------------------------
@@ -180,14 +350,15 @@ void StatementList::add(std::unique_ptr<Statement> statement) noexcept
   statements_.push_back(std::move(statement));
 }
 
+void StatementList::accept(StatementVisitor& visitor) const
+{
+  for (const auto& statement: statements_)
+    statement->accept(visitor);
+}
+
 void StatementList::dump(std::ostream& s, int level) const noexcept
 {
-  for (size_t index = 0; index < statements_.size(); ++ index)
-  {
-    if (index)
-      s << std::endl;
-    statements_[index]->dump(s, level);
-  }
+  dumpList(s, statements_, level);
 }
 
 // ----------------------------------------------------------------------------

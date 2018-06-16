@@ -16,6 +16,7 @@ namespace cassm
 class Node;
 class Expression;
 class ExprNode;
+class StatementVisitor;
 
 // ----------------------------------------------------------------------------
 //      Node
@@ -51,11 +52,26 @@ public:
   std::string label() const noexcept { return label_; }
   void setLabel(const std::string& label) noexcept { label_ = label; }
 
+  virtual void accept(StatementVisitor& visitor) const = 0;
+
 protected:
   void prefixLabel(std::ostream& s) const noexcept;
 
 private:
   std::string label_;
+};
+
+// ----------------------------------------------------------------------------
+//      EmptyStatement
+// ----------------------------------------------------------------------------
+
+class EmptyStatement: public Statement
+{
+public:
+  EmptyStatement(SourcePos pos) noexcept : Statement(pos) { }
+
+  void accept(StatementVisitor& visitor) const override;
+  void dump(std::ostream& s, int level = 0) const noexcept override;
 };
 
 // ----------------------------------------------------------------------------
@@ -68,6 +84,7 @@ public:
   SymbolDefinition(SourcePos pos, const std::string& label, std::unique_ptr<Expression> expr) noexcept
     : Statement(pos, label), expr_(std::move(expr)) { }
 
+  void accept(StatementVisitor& visitor) const override;
   void dump(std::ostream& s, int level = 0) const noexcept override;
 
 private:
@@ -83,6 +100,7 @@ class ProgramCounterAssignment: public Statement
 public:
   ProgramCounterAssignment(SourcePos pos, std::unique_ptr<Expression> expr) noexcept : Statement(pos), expr_(std::move(expr)) { }
 
+  void accept(StatementVisitor& visitor) const override;
   void dump(std::ostream& s, int level = 0) const noexcept override;
 
 private:
@@ -113,6 +131,7 @@ class ImpliedOperation : public Operation
 public:
   ImpliedOperation(SourcePos pos, Instruction& instruction) noexcept : Operation(pos, instruction) { }
 
+  void accept(StatementVisitor& visitor) const override;
   void dump(std::ostream& s, int level = 0) const noexcept override;
 };
 
@@ -126,6 +145,7 @@ public:
   ImmediateOperation(SourcePos pos, Instruction& instruction, ByteSelector selector, std::unique_ptr<Expression> expr) noexcept
     : Operation(pos, instruction), selector_(selector), expr_(std::move(expr)) { }
 
+  void accept(StatementVisitor& visitor) const override;
   void dump(std::ostream& s, int level = 0) const noexcept override;
 
 private:
@@ -142,6 +162,7 @@ class AccumulatorOperation : public Operation
 public:
   AccumulatorOperation(SourcePos pos, Instruction& instruction) noexcept : Operation(pos, instruction) { }
 
+  void accept(StatementVisitor& visitor) const override;
   void dump(std::ostream& s, int level = 0) const noexcept override;
 };
 
@@ -156,6 +177,7 @@ public:
                   std::unique_ptr<Expression> expr) noexcept
     : Operation(pos, instruction), index_(index), forceAbsolute_(forceAbsolute), expr_(std::move(expr)) { }
 
+  void accept(StatementVisitor& visitor) const override;
   void dump(std::ostream& s, int level = 0) const noexcept override;
 
 private:
@@ -174,6 +196,7 @@ public:
   IndirectOperation(SourcePos pos, Instruction& instruction, IndexRegister index, std::unique_ptr<Expression> expr) noexcept
     : Operation(pos, instruction), index_(index), expr_(std::move(expr)) { }
 
+  void accept(StatementVisitor& visitor) const override;
   void dump(std::ostream& s, int level = 0) const noexcept override;
 
 private:
@@ -191,6 +214,7 @@ public:
   BranchOperation(SourcePos pos, Instruction& instruction, std::unique_ptr<Expression> expr) noexcept
     : Operation(pos, instruction), expr_(std::move(expr)) { }
 
+  void accept(StatementVisitor& visitor) const override;
   void dump(std::ostream& s, int level = 0) const noexcept override;
 
 private:
@@ -208,6 +232,161 @@ public:
 };
 
 // ----------------------------------------------------------------------------
+//      OriginDirective
+// ----------------------------------------------------------------------------
+
+class OriginDirective : public Directive
+{
+public:
+  OriginDirective(SourcePos pos, std::unique_ptr<Expression> expr) noexcept : Directive(pos), expr_(std::move(expr)) { }
+
+  void accept(StatementVisitor& visitor) const override;
+  void dump(std::ostream& s, int level = 0) const noexcept override;
+
+private:
+  std::unique_ptr<Expression> expr_;
+};
+
+// ----------------------------------------------------------------------------
+//      BufferDirective
+// ----------------------------------------------------------------------------
+
+class BufferDirective : public Directive
+{
+public:
+  BufferDirective(SourcePos pos, std::unique_ptr<Expression> expr) noexcept : Directive(pos), expr_(std::move(expr)) { }
+
+  void accept(StatementVisitor& visitor) const override;
+  void dump(std::ostream& s, int level = 0) const noexcept override;
+
+private:
+  std::unique_ptr<Expression> expr_;
+};
+
+// ----------------------------------------------------------------------------
+//      OffsetBeginDirective
+// ----------------------------------------------------------------------------
+
+class OffsetBeginDirective : public Directive
+{
+public:
+  OffsetBeginDirective(SourcePos pos, std::unique_ptr<Expression> expr) noexcept : Directive(pos), expr_(std::move(expr)) { }
+
+  void accept(StatementVisitor& visitor) const override;
+  void dump(std::ostream& s, int level = 0) const noexcept override;
+
+private:
+  std::unique_ptr<Expression> expr_;
+};
+
+// ----------------------------------------------------------------------------
+//      OffsetEndDirective
+// ----------------------------------------------------------------------------
+
+class OffsetEndDirective : public Directive
+{
+public:
+  OffsetEndDirective(SourcePos pos) noexcept : Directive(pos) { }
+
+  void accept(StatementVisitor& visitor) const override;
+  void dump(std::ostream& s, int level = 0) const noexcept override;
+};
+
+// ----------------------------------------------------------------------------
+//      ObjectFileDirective
+// ----------------------------------------------------------------------------
+
+class ObjectFileDirective : public Directive
+{
+public:
+  ObjectFileDirective(SourcePos pos, const std::string& filename) noexcept : Directive(pos), filename_(filename) { }
+
+  void accept(StatementVisitor& visitor) const override;
+  void dump(std::ostream& s, int level = 0) const noexcept override;
+
+private:
+  std::string filename_;
+};
+
+// ----------------------------------------------------------------------------
+//      ByteDirective
+// ----------------------------------------------------------------------------
+
+class ByteDirective : public Directive
+{
+public:
+  ByteDirective(SourcePos pos, ByteSelector selector, std::vector<std::unique_ptr<Expression>> args) noexcept
+    : Directive(pos), selector_(selector), args_(std::move(args)) { }
+
+  void accept(StatementVisitor& visitor) const override;
+  void dump(std::ostream& s, int level = 0) const noexcept override;
+
+private:
+  ByteSelector selector_;
+  std::vector<std::unique_ptr<Expression>> args_;
+};
+
+// ----------------------------------------------------------------------------
+//      WordDirective
+// ----------------------------------------------------------------------------
+
+class WordDirective : public Directive
+{
+public:
+  WordDirective(SourcePos pos, std::vector<std::unique_ptr<Expression>> args) noexcept
+    : Directive(pos), args_(std::move(args)) { }
+
+  void accept(StatementVisitor& visitor) const override;
+  void dump(std::ostream& s, int level = 0) const noexcept override;
+
+private:
+  std::vector<std::unique_ptr<Expression>> args_;
+};
+
+// ----------------------------------------------------------------------------
+//      StringDirective
+// ----------------------------------------------------------------------------
+
+class StringDirective : public Directive
+{
+public:
+  StringDirective(SourcePos pos, StringEncoding encoding, const std::string& str) noexcept
+    : Directive(pos), encoding_(encoding), str_(str) { }
+
+  void accept(StatementVisitor& visitor) const override;
+  void dump(std::ostream& s, int level = 0) const noexcept override;
+
+private:
+  StringEncoding encoding_;
+  std::string str_;
+};
+
+// ----------------------------------------------------------------------------
+//      StatementVisitor
+// ----------------------------------------------------------------------------
+
+class StatementVisitor
+{
+public:
+  virtual void visit(const SymbolDefinition& node) { }
+  virtual void visit(const ProgramCounterAssignment& node) { }
+  virtual void visit(const ImpliedOperation& node) { }
+  virtual void visit(const ImmediateOperation& node) { }
+  virtual void visit(const AccumulatorOperation& node) { }
+  virtual void visit(const DirectOperation& node) { }
+  virtual void visit(const IndirectOperation& node) { }
+  virtual void visit(const BranchOperation& node) { }
+  virtual void visit(const OriginDirective& node) { }
+  virtual void visit(const BufferDirective& node) { }
+  virtual void visit(const OffsetBeginDirective& node) { }
+  virtual void visit(const OffsetEndDirective& node) { }
+  virtual void visit(const ObjectFileDirective& node) { }
+  virtual void visit(const ByteDirective& node) { }
+  virtual void visit(const WordDirective& node) { }
+  virtual void visit(const StringDirective& node) { }
+};
+
+// ----------------------------------------------------------------------------
 //      StatementList
 // ----------------------------------------------------------------------------
 
@@ -218,6 +397,7 @@ public:
 
   void add(std::unique_ptr<Statement> statement) noexcept;
 
+  void accept(StatementVisitor& visitor) const;
   void dump(std::ostream& s, int level = 0) const noexcept override;
 
 private:

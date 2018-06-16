@@ -180,6 +180,8 @@ Token LineReader::nextToken()
   Token token;
   if (c == -1 || c == ';')
   {
+    if (c != -1)
+      unget();
     token.type = TokenType::End;
     token.pos = { &line_, offset_ };
     return token;
@@ -294,6 +296,15 @@ void LineReader::expectPunctuator(char c)
   auto token = nextToken();
   if (token.type != TokenType::Punctuator || token.punctuator != c)
     throwSourceError(token.pos, "Expected '%c'", c);
+}
+
+bool LineReader::optionalPunctuator(char c)
+{
+  auto token = nextToken();
+  if (token.type == TokenType::Punctuator && token.punctuator == c)
+    return true;
+  unget(token);
+  return false;
 }
 
 void LineReader::unget(Token& token) noexcept

@@ -27,8 +27,6 @@
   * .obj "filename"               [ create object file ]
   * .seq "filename"               [ includes source file ]
   * .byte [byte, "text", ... ]
-  * .byt$                         [ numeric values default to hex ]
-  * .byt%                         [ numeric values default to binary ]
   * .word, .wor$, .wor%
   * .asc "text", byte             [ same as .byte ]
   * .scr "text", byte             [ screen codes instead of ascii ]

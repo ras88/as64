@@ -1,6 +1,7 @@
 #include <iostream>
 #include "error.h"
 #include "parser.h"
+#include "context.h"
 
 using namespace cassm;
 
