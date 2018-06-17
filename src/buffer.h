@@ -2,7 +2,7 @@
 #define _INCLUDED_CASSM_BUFFER_H
 
 #include <vector>
-#include <cstdint>
+#include <cassert>
 #include "types.h"
 
 namespace cassm
@@ -15,12 +15,19 @@ namespace cassm
 class CodeBuffer
 {
 public:
-  void writeByte(int offset, uint8_t value);
-  void writeWord(int offset, uint16_t value);
-  void fill(int offset, size_t count, uint8_t value = 0);
+  Address origin() const noexcept { return origin_; }
+  void setOrigin(Address pc) noexcept { origin_ = pc; }
+  std::string filename() const noexcept { return filename_; }
+  void setFilename(const std::string& filename) noexcept { filename_ = filename; }
+
+  void writeByte(Offset offset, Byte value) noexcept;
+  void writeWord(Offset offset, Word value) noexcept;
+  void fill(ByteLength offset, ByteLength count, Byte value = 0) noexcept;
 
 private:
-  std::vector<uint8_t> data_;
+  Address origin_;
+  std::string filename_;
+  std::vector<Byte> data_;
 };
 
 // ----------------------------------------------------------------------------
@@ -30,22 +37,40 @@ private:
 class CodeWriter
 {
 public:
+  CodeWriter() noexcept;
   CodeWriter(CodeBuffer& buffer) noexcept;
 
-  int offset() const noexcept { return offset_; }
+  Offset offset() const noexcept { return offset_; }
 
-  Address pc() const noexcept { return pc_; }
-  void pc(Address addr) noexcept { pc_ = addr; }
-
-  void byte(uint8_t value) { buffer_.writeByte(offset_, value); ++ offset_; ++ pc_; }
-  void word(uint16_t value) { buffer_.writeWord(offset_, value); offset_ += 2; pc_ += 2; }
-  void fill(size_t count, uint8_t value = 0) { buffer_.fill(offset_, count, value); offset_ += count; pc_ += count; }
+  void byte(Byte value) noexcept;
+  void word(Word value) noexcept;
+  void fill(ByteLength count, Byte value = 0) noexcept;
 
 private:
-  CodeBuffer& buffer_;
-  int offset_;
-  Address pc_;
+  CodeBuffer *buffer_;
+  Offset offset_;
 };
+
+inline void CodeWriter::byte(Byte value) noexcept
+{
+  assert(buffer_ != nullptr);
+  buffer_->writeByte(offset_, value);
+  ++ offset_;
+}
+
+inline void CodeWriter::word(Word value) noexcept
+{
+  assert(buffer_ != nullptr);
+  buffer_->writeWord(offset_, value);
+  offset_ += 2;
+}
+
+inline void CodeWriter::fill(ByteLength count, Byte value) noexcept
+{
+  assert(buffer_ != nullptr);
+  buffer_->fill(offset_, count, value);
+  offset_ += count;
+}
 
 }
 #endif

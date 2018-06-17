@@ -1,10 +1,12 @@
 #ifndef _INCLUDED_CASSM_CONTEXT_H
 #define _INCLUDED_CASSM_CONTEXT_H
 
+#include <vector>
 #include "source.h"
 #include "ast.h"
 #include "message.h"
-#include "table.h"
+#include "symbol.h"
+#include "buffer.h"
 
 namespace cassm
 {
@@ -20,7 +22,8 @@ struct Context
   SourceStream source;
   StatementList statements;
   MessageList messages;
-  SymbolTable<Address> symbols;
+  SymbolTable symbols;
+  std::vector<CodeBuffer> buffers;
 
   Address pc;
 };

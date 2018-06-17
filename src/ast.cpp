@@ -54,7 +54,7 @@ void Node::indent(std::ostream& s, int level) const noexcept
 
 void Statement::prefixLabel(std::ostream& s) const noexcept
 {
-  if (hasLabel())
+  if (! label().isEmpty())
     s << '(' << label() << ") ";
 }
 
@@ -62,7 +62,7 @@ void Statement::prefixLabel(std::ostream& s) const noexcept
 //      EmptyStatement
 // ----------------------------------------------------------------------------
 
-void EmptyStatement::accept(StatementVisitor& visitor) const
+void EmptyStatement::accept(StatementVisitor& visitor)
 {
 }
 
@@ -76,7 +76,7 @@ void EmptyStatement::dump(std::ostream& s, int level) const noexcept
 //      SymbolDefinition
 // ----------------------------------------------------------------------------
 
-void SymbolDefinition::accept(StatementVisitor& visitor) const
+void SymbolDefinition::accept(StatementVisitor& visitor)
 {
   visitor.visit(*this);
 }
@@ -92,7 +92,7 @@ void SymbolDefinition::dump(std::ostream& s, int level) const noexcept
 //      ProgramCounterAssignment
 // ----------------------------------------------------------------------------
 
-void ProgramCounterAssignment::accept(StatementVisitor& visitor) const
+void ProgramCounterAssignment::accept(StatementVisitor& visitor)
 {
   visitor.visit(*this);
 }
@@ -108,7 +108,7 @@ void ProgramCounterAssignment::dump(std::ostream& s, int level) const noexcept
 //      ImpliedOperation
 // ----------------------------------------------------------------------------
 
-void ImpliedOperation::accept(StatementVisitor& visitor) const
+void ImpliedOperation::accept(StatementVisitor& visitor)
 {
   visitor.visit(*this);
 }
@@ -124,7 +124,7 @@ void ImpliedOperation::dump(std::ostream& s, int level) const noexcept
 //      ImmediateOperation
 // ----------------------------------------------------------------------------
 
-void ImmediateOperation::accept(StatementVisitor& visitor) const
+void ImmediateOperation::accept(StatementVisitor& visitor)
 {
   visitor.visit(*this);
 }
@@ -141,7 +141,7 @@ void ImmediateOperation::dump(std::ostream& s, int level) const noexcept
 //      AccumulatorOperation
 // ----------------------------------------------------------------------------
 
-void AccumulatorOperation::accept(StatementVisitor& visitor) const
+void AccumulatorOperation::accept(StatementVisitor& visitor)
 {
   visitor.visit(*this);
 }
@@ -157,7 +157,7 @@ void AccumulatorOperation::dump(std::ostream& s, int level) const noexcept
 //      DirectOperation
 // ----------------------------------------------------------------------------
 
-void DirectOperation::accept(StatementVisitor& visitor) const
+void DirectOperation::accept(StatementVisitor& visitor)
 {
   visitor.visit(*this);
 }
@@ -177,7 +177,7 @@ void DirectOperation::dump(std::ostream& s, int level) const noexcept
 //      IndirectOperation
 // ----------------------------------------------------------------------------
 
-void IndirectOperation::accept(StatementVisitor& visitor) const
+void IndirectOperation::accept(StatementVisitor& visitor)
 {
   visitor.visit(*this);
 }
@@ -194,7 +194,7 @@ void IndirectOperation::dump(std::ostream& s, int level) const noexcept
 //      BranchOperation
 // ----------------------------------------------------------------------------
 
-void BranchOperation::accept(StatementVisitor& visitor) const
+void BranchOperation::accept(StatementVisitor& visitor)
 {
   visitor.visit(*this);
 }
@@ -211,7 +211,7 @@ void BranchOperation::dump(std::ostream& s, int level) const noexcept
 //      OriginDirective
 // ----------------------------------------------------------------------------
 
-void OriginDirective::accept(StatementVisitor& visitor) const
+void OriginDirective::accept(StatementVisitor& visitor)
 {
   visitor.visit(*this);
 }
@@ -228,7 +228,7 @@ void OriginDirective::dump(std::ostream& s, int level) const noexcept
 //      BufferDirective
 // ----------------------------------------------------------------------------
 
-void BufferDirective::accept(StatementVisitor& visitor) const
+void BufferDirective::accept(StatementVisitor& visitor)
 {
   visitor.visit(*this);
 }
@@ -245,7 +245,7 @@ void BufferDirective::dump(std::ostream& s, int level) const noexcept
 //      OffsetBeginDirective
 // ----------------------------------------------------------------------------
 
-void OffsetBeginDirective::accept(StatementVisitor& visitor) const
+void OffsetBeginDirective::accept(StatementVisitor& visitor)
 {
   visitor.visit(*this);
 }
@@ -262,7 +262,7 @@ void OffsetBeginDirective::dump(std::ostream& s, int level) const noexcept
 //      OffsetEndDirective
 // ----------------------------------------------------------------------------
 
-void OffsetEndDirective::accept(StatementVisitor& visitor) const
+void OffsetEndDirective::accept(StatementVisitor& visitor)
 {
   visitor.visit(*this);
 }
@@ -278,7 +278,7 @@ void OffsetEndDirective::dump(std::ostream& s, int level) const noexcept
 //      ObjectFileDirective
 // ----------------------------------------------------------------------------
 
-void ObjectFileDirective::accept(StatementVisitor& visitor) const
+void ObjectFileDirective::accept(StatementVisitor& visitor)
 {
   visitor.visit(*this);
 }
@@ -294,7 +294,7 @@ void ObjectFileDirective::dump(std::ostream& s, int level) const noexcept
 //      ByteDirective
 // ----------------------------------------------------------------------------
 
-void ByteDirective::accept(StatementVisitor& visitor) const
+void ByteDirective::accept(StatementVisitor& visitor)
 {
   visitor.visit(*this);
 }
@@ -311,7 +311,7 @@ void ByteDirective::dump(std::ostream& s, int level) const noexcept
 //      WordDirective
 // ----------------------------------------------------------------------------
 
-void WordDirective::accept(StatementVisitor& visitor) const
+void WordDirective::accept(StatementVisitor& visitor)
 {
   visitor.visit(*this);
 }
@@ -328,7 +328,7 @@ void WordDirective::dump(std::ostream& s, int level) const noexcept
 //      StringDirective
 // ----------------------------------------------------------------------------
 
-void StringDirective::accept(StatementVisitor& visitor) const
+void StringDirective::accept(StatementVisitor& visitor)
 {
   visitor.visit(*this);
 }
@@ -375,12 +375,20 @@ void StatementList::dump(std::ostream& s, int level) const noexcept
 //      Expression
 // ----------------------------------------------------------------------------
 
-Maybe<Address> Expression::eval(Context& context, bool throwUndefined)
+Maybe<Address> Expression::tryEval(Context& context)
 {
-  auto root = root_->eval(context, throwUndefined);
+  auto root = root_->eval(context, false);
   if (root)
     root_ = std::move(root);
   return root_->value();
+}
+
+Address Expression::eval(Context& context)
+{
+  auto root = root_->eval(context, true);
+  if (root)
+    root_ = std::move(root);
+  return root_->value().value();
 }
 
 void Expression::dump(std::ostream& s, int level) const noexcept
@@ -406,7 +414,7 @@ void ExprConstant::dump(std::ostream& s, int level) const noexcept
 
 std::unique_ptr<ExprNode> ExprSymbol::eval(Context& context, bool throwUndefined)
 {
-  auto *value = context.symbols.get(name_);
+  auto value = context.symbols.get(name_);
   if (! value)
   {
     if (! throwUndefined)
@@ -428,15 +436,21 @@ void ExprSymbol::dump(std::ostream& s, int level) const noexcept
 
 std::unique_ptr<ExprNode> ExprTemporarySymbol::eval(Context& context, bool throwUndefined)
 {
-  // TODO
-  return std::make_unique<ExprConstant>(pos(), 0);
+  auto value = context.symbols.get(context.pc, labelDelta_);
+  if (! value)
+  {
+    if (! throwUndefined)
+      return nullptr;
+    throwSourceError(pos(), "No applicable temporary branch symbol found");
+  }
+  std::cout << "temp symbol " << pos() << " resolved to " << *value << std::endl;
+  return std::make_unique<ExprConstant>(pos(), *value);
 }
 
 void ExprTemporarySymbol::dump(std::ostream& s, int level) const noexcept
 {
   indent(s, level);
-  s << (direction_ == BranchDirection::Backward ? "Backward Temporary Symbol" : "Forward Temporary Symbol");
-  s << ": count=" << count_;
+  s << "Temporary Label Delta = " << labelDelta_;
 }
 
 // ----------------------------------------------------------------------------

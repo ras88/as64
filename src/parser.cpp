@@ -23,7 +23,7 @@ public:
 
 private:
   std::unique_ptr<Statement> handleStatement(LineReader& reader);
-  std::unique_ptr<Statement> handleInstructionOrDirective(LineReader& reader, const std::string& label,
+  std::unique_ptr<Statement> handleInstructionOrDirective(LineReader& reader, const Label& label,
                                                           SourcePos labelPos,bool allowDef);
   std::unique_ptr<Operation> handleInstruction(LineReader& reader, Instruction& ins, SourcePos insPos);
   std::unique_ptr<Operation> handleImmediate(LineReader& reader, Instruction& ins, SourcePos insPos);
@@ -50,7 +50,7 @@ private:
   Context& context_;
 
   using DirectiveHandler = std::unique_ptr<Statement> (Parser::*)(LineReader& reader, SourcePos pos);
-  static SymbolTable<DirectiveHandler> directives_;
+  static Table<DirectiveHandler> directives_;
 };
 
 void parseFile(Context& context, const std::string& filename)
@@ -120,17 +120,21 @@ std::unique_ptr<Statement> Parser::handleStatement(LineReader& reader)
       }
 
       case '+':
+        return handleInstructionOrDirective(reader, LabelType::TemporaryForward, first.pos, false);
+
       case '-':
+        return handleInstructionOrDirective(reader, LabelType::TemporaryBackward, first.pos, false);
+
       case '/':
-        return handleInstructionOrDirective(reader, std::string(1, first.punctuator), first.pos, false);
+        return handleInstructionOrDirective(reader, LabelType::Temporary, first.pos, false);
     }
   }
 
   return std::make_unique<EmptyStatement>(first.pos);
 }
 
-std::unique_ptr<Statement> Parser::handleInstructionOrDirective(LineReader& reader, const std::string& label,
-                                                                SourcePos labelPos,bool allowDef)
+std::unique_ptr<Statement> Parser::handleInstructionOrDirective(LineReader& reader, const Label& label,
+                                                                SourcePos labelPos, bool allowDef)
 {
   auto token = reader.nextToken();
   if (allowDef && token.type == TokenType::Punctuator && token.punctuator == '=')
@@ -142,14 +146,14 @@ std::unique_ptr<Statement> Parser::handleInstructionOrDirective(LineReader& read
     if (! ins)
       throwSourceError(token.pos, "Invalid instruction ('%s')", token.text.c_str());
     auto node = handleInstruction(reader, *ins, token.pos);
-    if (node && ! label.empty())
+    if (node && ! label.isEmpty())
       node->setLabel(label);
     return node;
   }
   if (token.type == TokenType::Punctuator && token.punctuator == '.')
   {
     auto node = handleDirective(reader);
-    if (node && ! label.empty())
+    if (node && ! label.isEmpty())
       node->setLabel(label);
     return node;
   }
@@ -428,8 +432,9 @@ std::unique_ptr<ExprNode> Parser::parseOperand(LineReader& reader, bool optional
           ++ count;
         if (count < 3)
           reader.unget(extra);
-        auto direction = token.punctuator == '-' ? BranchDirection::Backward : BranchDirection::Forward;
-        return std::make_unique<ExprTemporarySymbol>(token.pos, direction, count);
+        if (token.punctuator == '-')
+          count = -count;
+        return std::make_unique<ExprTemporarySymbol>(token.pos, count);
       }
 
       default:
@@ -487,7 +492,7 @@ IndexRegister Parser::optionalIndex(LineReader& reader, SourcePos *pos)
   throwSourceError(token.pos, "Expected 'x' or 'y'");
 }
 
-SymbolTable<Parser::DirectiveHandler> Parser::directives_([](auto& table)
+Table<Parser::DirectiveHandler> Parser::directives_([](auto& table)
 {
   table.emplace("org",      &Parser::handleOrg);
   table.emplace("off",      &Parser::handleOff);

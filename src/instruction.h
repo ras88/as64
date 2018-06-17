@@ -20,6 +20,8 @@ enum class IndexRegister
   Y
 };
 
+std::string toString(IndexRegister index) noexcept;
+
 // ----------------------------------------------------------------------------
 //      AddrMode
 // ----------------------------------------------------------------------------
@@ -47,6 +49,7 @@ constexpr size_t AddrModeCount = static_cast<size_t>(AddrMode::_End);
 
 AddrMode absoluteMode(IndexRegister index) noexcept;
 AddrMode zeroPageMode(IndexRegister index) noexcept;
+AddrMode indirectMode(IndexRegister index) noexcept;
 bool isZeroPage(AddrMode mode) noexcept;
 
 // ----------------------------------------------------------------------------
@@ -74,9 +77,13 @@ public:
   bool isRelative() const noexcept { return isValid(opcode(AddrMode::Relative)); }
   bool isImplied() const noexcept { return isValid(opcode(AddrMode::Implied)); }
 
-  // All of the encoding methods return the number of bytes written, or 0 to indicate that no
-  // compatible addressing mode exists for the instruction.
-  size_t encodeDirect(CodeWriter& writer, uint16_t addr, IndexRegister index, bool forceAbsolute = false) const noexcept;
+  Maybe<ByteLength> encodeImplied(CodeWriter *writer) const noexcept;
+  Maybe<ByteLength> encodeAccumulator(CodeWriter *writer) const noexcept;
+  Maybe<ByteLength> encodeImmediate(CodeWriter *writer, Byte value) const noexcept;
+  Maybe<ByteLength> encodeDirect(CodeWriter *writer, Address addr, IndexRegister index, bool forceAbsolute = false) const noexcept;
+  Maybe<ByteLength> encodeIndirect(CodeWriter *writer, Address addr, IndexRegister index) const noexcept;
+  Maybe<ByteLength> encodeRelative(CodeWriter *writer, SByte delta) const noexcept;
+  Maybe<ByteLength> encodeRelative(CodeWriter *writer, Address from, Address to) const noexcept;
 
 private:
   std::string name_;

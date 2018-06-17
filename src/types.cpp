@@ -21,19 +21,21 @@ std::string toString(ByteSelector selector) noexcept
   return g_byteSelectorTags.fromValue(selector);
 }
 
-// ----------------------------------------------------------------------------
-//      BranchDirection
-// ----------------------------------------------------------------------------
-
-static EnumTags<BranchDirection> g_branchDirectionTags =
+Maybe<Byte> select(ByteSelector selector, Word value) noexcept
 {
-  { BranchDirection::Forward,         "Forward" },
-  { BranchDirection::Backward,        "Backward" }
-};
+  switch (selector)
+  {
+    case ByteSelector::Low:
+      return value & 0xff;
 
-std::string toString(BranchDirection direction) noexcept
-{
-  return g_branchDirectionTags.fromValue(direction);
+    case ByteSelector::High:
+      return value >> 8;
+
+    default:
+      if (value > 0xff)
+        return nullptr;
+      return value;
+  }
 }
 
 // ----------------------------------------------------------------------------
@@ -49,6 +51,38 @@ static EnumTags<StringEncoding> g_stringEncodingTags =
 std::string toString(StringEncoding encoding) noexcept
 {
   return g_stringEncodingTags.fromValue(encoding);
+}
+
+// ----------------------------------------------------------------------------
+//      Label
+// ----------------------------------------------------------------------------
+
+std::ostream& operator<<(std::ostream& s, const Label& label)
+{
+  switch (label.type_)
+  {
+    case LabelType::Empty:
+      s << "<empty>";
+      break;
+
+    case LabelType::Symbolic:
+      s << label.name_;
+      break;
+
+    case LabelType::Temporary:
+      s << "<temporary>";
+      break;
+
+    case LabelType::TemporaryForward:
+      s << "<temporary-forward>";
+      break;
+
+    case LabelType::TemporaryBackward:
+      s << "<temporary-backward>";
+      break;
+  }
+
+  return s;
 }
 
 }

@@ -9,14 +9,14 @@ namespace cassm
 {
 
 // ----------------------------------------------------------------------------
-//      SymbolTable
+//      Table
 // ----------------------------------------------------------------------------
 
-template<typename T> class SymbolTable
+template<typename T> class Table
 {
 public:
-  SymbolTable() noexcept { }
-  SymbolTable(std::function<void (SymbolTable&)> initializer) noexcept;
+  Table() noexcept { }
+  Table(std::function<void (Table&)> initializer) noexcept;
 
   bool exists(const std::string& name) const noexcept { return data_.find(name) != std::end(data_); }
   const T *get(const std::string& name) const noexcept;
@@ -33,19 +33,19 @@ private:
   std::unordered_map<std::string, T> data_;
 };
 
-template<typename T> SymbolTable<T>::SymbolTable(std::function<void (SymbolTable&)> initializer) noexcept
+template<typename T> Table<T>::Table(std::function<void (Table&)> initializer) noexcept
 {
   if (initializer)
     initializer(*this);
 }
 
-template<typename T> const T *SymbolTable<T>::get(const std::string& name) const noexcept
+template<typename T> const T *Table<T>::get(const std::string& name) const noexcept
 {
   const auto i = data_.find(name);
   return i != std::end(data_) ? &i->second : nullptr;
 }
 
-template<typename T> T *SymbolTable<T>::get(const std::string& name) noexcept
+template<typename T> T *Table<T>::get(const std::string& name) noexcept
 {
   auto i = data_.find(name);
   return i != std::end(data_) ? &i->second : nullptr;

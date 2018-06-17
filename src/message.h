@@ -4,6 +4,7 @@
 #include <string>
 #include <ostream>
 #include <vector>
+#include "types.h"
 #include "source.h"
 
 namespace cassm
@@ -47,8 +48,8 @@ public:
   int warningCount() const noexcept { return warningCount_; }
 
   void add(Severity severity, SourcePos pos, const std::string& summary) noexcept;
-  void error(SourcePos pos, const char *format, ...) noexcept;
-  void warning(SourcePos pos, const char *format, ...) noexcept;
+  void error(SourcePos pos, const char *format, ...) noexcept CHECK_FORMAT(3, 4);
+  void warning(SourcePos pos, const char *format, ...) noexcept CHECK_FORMAT(3, 4);
 
   friend std::ostream& operator<<(std::ostream& s, const MessageList& obj) noexcept;
 

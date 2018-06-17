@@ -9,7 +9,9 @@ add_executable(cassm
 	buffer.cpp
 	ast.cpp
 	parser.cpp
+	symbol.cpp
 	define.cpp
+	emit.cpp
 	main.cpp
 )
 

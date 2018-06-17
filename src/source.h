@@ -6,6 +6,7 @@
 #include <istream>
 #include <stack>
 #include <vector>
+#include "types.h"
 #include "error.h"
 
 namespace cassm
@@ -172,7 +173,7 @@ private:
   std::string message_;
 };
 
-[[noreturn]] void throwSourceError(SourcePos pos, const char *format, ...);
+[[noreturn]] void throwSourceError(SourcePos pos, const char *format, ...) CHECK_FORMAT(2, 3);
 
 }
 #endif

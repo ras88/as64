@@ -1,6 +1,8 @@
 #include <iostream>
 #include "error.h"
 #include "parser.h"
+#include "define.h"
+#include "emit.h"
 #include "context.h"
 
 using namespace cassm;
@@ -15,8 +17,11 @@ int main(int argc, char **argv)
     Context context;
     parseFile(context, argv[1]);
 
-    context.statements.dump(std::cout);
-    std::cout << std::endl;
+//    context.statements.dump(std::cout);
+//    std::cout << std::endl;
+
+    define(context);
+    emit(context);
 
     if (context.messages.count())
       std::cerr << context.messages << std::endl;

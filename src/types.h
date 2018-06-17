@@ -2,49 +2,24 @@
 #define _INCLUDED_CASSM_TYPES_H
 
 #include <string>
+#include <ostream>
 #include <cstdint>
 
 namespace cassm
 {
 
 using Address = uint16_t;
+using ByteLength = uint16_t;
+using Byte = uint8_t;
+using SByte = int8_t;
+using Word = uint16_t;
+using Offset = uint16_t;
 
-// ----------------------------------------------------------------------------
-//      ByteSelector
-// ----------------------------------------------------------------------------
-
-enum class ByteSelector
-{
-  Unspecified,
-  Low,
-  High
-};
-
-std::string toString(ByteSelector selector) noexcept;
-
-// ----------------------------------------------------------------------------
-//      BranchDirection
-// ----------------------------------------------------------------------------
-
-enum class BranchDirection
-{
-  Forward,
-  Backward
-};
-
-std::string toString(BranchDirection direction) noexcept;
-
-// ----------------------------------------------------------------------------
-//      StringEncoding
-// ----------------------------------------------------------------------------
-
-enum class StringEncoding
-{
-  Petscii,
-  Screen
-};
-
-std::string toString(StringEncoding encoding) noexcept;
+#ifdef __GNUC__
+#define CHECK_FORMAT(formatIndex, argIndex) __attribute__ (( format(printf, formatIndex, argIndex) ))
+#else
+#define CHECK_FORMAT(formatIndex, argIndex)
+#endif
 
 // ----------------------------------------------------------------------------
 //      Maybe
@@ -87,6 +62,74 @@ template<typename T> Maybe<T>& Maybe<T>::operator=(T value) noexcept
   value_ = value_;
   has_ = true;
   return *this;
+}
+
+// ----------------------------------------------------------------------------
+//      StringEncoding
+// ----------------------------------------------------------------------------
+
+enum class StringEncoding
+{
+  Petscii,
+  Screen
+};
+
+std::string toString(StringEncoding encoding) noexcept;
+
+// ----------------------------------------------------------------------------
+//      ByteSelector
+// ----------------------------------------------------------------------------
+
+enum class ByteSelector
+{
+  Unspecified,
+  Low,
+  High
+};
+
+std::string toString(ByteSelector selector) noexcept;
+Maybe<Byte> select(ByteSelector selector, Word value) noexcept;
+
+// ----------------------------------------------------------------------------
+//      LabelType
+// ----------------------------------------------------------------------------
+
+enum class LabelType
+{
+  Empty,
+  Symbolic,
+  Temporary,
+  TemporaryForward,
+  TemporaryBackward
+};
+
+// ----------------------------------------------------------------------------
+//      Label
+// ----------------------------------------------------------------------------
+
+class Label
+{
+public:
+  Label(LabelType type = LabelType::Empty) noexcept : type_(type) { }
+  Label(const std::string& name) noexcept : type_(LabelType::Symbolic), name_(name) { }
+
+  LabelType type() const noexcept { return type_; }
+  bool isEmpty() const noexcept { return type_ == LabelType::Empty; }
+  bool isSymbolic() const noexcept { return type_ == LabelType::Symbolic; }
+  bool isTemporary() const noexcept;
+
+  const std::string& name() const noexcept { return name_; }
+
+  friend std::ostream& operator<<(std::ostream& s, const Label& label);
+
+private:
+  LabelType type_;
+  std::string name_;
+};
+
+inline bool Label::isTemporary() const noexcept
+{
+  return type_ == LabelType::Temporary || type_ == LabelType::TemporaryForward || type_ == LabelType::TemporaryBackward;
 }
 
 }

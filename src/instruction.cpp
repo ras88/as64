@@ -1,12 +1,29 @@
 #include <iostream>
 #include <algorithm>
 #include "str.h"
+#include "enum.h"
 #include "table.h"
 #include "buffer.h"
 #include "instruction.h"
 
 namespace cassm
 {
+
+// ----------------------------------------------------------------------------
+//      IndexRegister
+// ----------------------------------------------------------------------------
+
+static EnumTags<IndexRegister> g_indexRegisterTags =
+{
+  { IndexRegister::None,          "None" },
+  { IndexRegister::X,             "X" },
+  { IndexRegister::Y,             "Y" }
+};
+
+std::string toString(IndexRegister index) noexcept
+{
+  return g_indexRegisterTags.fromValue(index);
+}
 
 // ----------------------------------------------------------------------------
 //      AddrMode
@@ -42,6 +59,24 @@ AddrMode zeroPageMode(IndexRegister index) noexcept
 
     case IndexRegister::Y:
       return AddrMode::ZeroPageY;
+
+    default:
+      std::terminate();
+  }
+}
+
+AddrMode indirectMode(IndexRegister index) noexcept
+{
+  switch (index)
+  {
+    case IndexRegister::None:
+      return AddrMode::Indirect;
+
+    case IndexRegister::X:
+      return AddrMode::IndexedIndirect;
+
+    case IndexRegister::Y:
+      return AddrMode::IndirectIndexed;
 
     default:
       std::terminate();
@@ -127,9 +162,9 @@ static InstructionDef g_table[] =
   { "tya",    ____,   ____,   0x98,   ____,   ____,   ____,   ____,   ____,   ____,   ____,   ____,   ____,   ____  }
 };
 
-static SymbolTable<Instruction>& instructions() noexcept
+static Table<Instruction>& instructions() noexcept
 {
-  static SymbolTable<Instruction> instance([](auto& table)
+  static Table<Instruction> instance([](auto& table)
   {
     for (const auto& def: g_table)
       table.emplace(def.name, def.name, def.opcodes);
@@ -147,27 +182,118 @@ Instruction::Instruction(const std::string& name, OpcodeArray opcodes) noexcept
 {
 }
 
-size_t Instruction::encodeDirect(CodeWriter& writer, uint16_t addr, IndexRegister index, bool forceAbsolute) const noexcept
+Maybe<ByteLength> Instruction::encodeImplied(CodeWriter *writer) const noexcept
+{
+  auto op = opcode(AddrMode::Implied);
+  if (! isValid(op))
+    return nullptr;
+  if (writer)
+    writer->byte(op);
+  return 1;
+}
+
+Maybe<ByteLength> Instruction::encodeAccumulator(CodeWriter *writer) const noexcept
+{
+  auto op = opcode(AddrMode::Accumulator);
+  if (! isValid(op))
+    return nullptr;
+  if (writer)
+    writer->byte(op);
+  return 1;
+}
+
+Maybe<ByteLength> Instruction::encodeImmediate(CodeWriter *writer, Byte value) const noexcept
+{
+  auto op = opcode(AddrMode::Immediate);
+  if (! isValid(op))
+    return nullptr;
+  if (writer)
+  {
+    writer->byte(op);
+    writer->byte(value);
+  }
+  return 2;
+}
+
+Maybe<ByteLength> Instruction::encodeDirect(CodeWriter *writer, Address addr,
+                                            IndexRegister index, bool forceAbsolute) const noexcept
 {
   if (addr < 0x100 && ! forceAbsolute)
   {
     auto op = opcode(zeroPageMode(index));
     if (isValid(op))
     {
-      writer.byte(op);
-      writer.byte(addr);
+      if (writer)
+      {
+        writer->byte(op);
+        writer->byte(addr);
+      }
       return 2;
     }
   }
   auto op = opcode(absoluteMode(index));
   if (isValid(op))
   {
-    writer.byte(op);
-    writer.word(addr);
+    if (writer)
+    {
+      writer->byte(op);
+      writer->word(addr);
+    }
     return 3;
   }
 
-  return 0;
+  return nullptr;
+}
+
+Maybe<ByteLength> Instruction::encodeIndirect(CodeWriter *writer, Address addr, IndexRegister index) const noexcept
+{
+  auto mode = indirectMode(index);
+  auto op = opcode(mode);
+  if (! isValid(op))
+    return nullptr;
+
+  if (mode == AddrMode::Indirect)
+  {
+    if (writer)
+    {
+      writer->byte(op);
+      writer->word(addr);
+    }
+    return 3;
+  }
+
+  if (addr > 0xff)
+    return nullptr;
+  if (writer)
+  {
+    writer->byte(op);
+    writer->byte(addr);
+  }
+  return 2;
+}
+
+Maybe<ByteLength> Instruction::encodeRelative(CodeWriter *writer, SByte delta) const noexcept
+{
+  auto op = opcode(AddrMode::Relative);
+  if (! isValid(op))
+    return nullptr;
+
+  if (writer)
+  {
+    writer->byte(op);
+    writer->byte(delta);
+  }
+
+  return 2;
+}
+
+Maybe<ByteLength> Instruction::encodeRelative(CodeWriter *writer, Address from, Address to) const noexcept
+{
+  auto delta = static_cast<int>(to) - (static_cast<int>(from) + 2);
+  if (delta > 127 || delta < -128)
+    return nullptr;
+
+  return encodeRelative(writer, delta);
 }
 
 Instruction *instructionNamed(const std::string& name) noexcept

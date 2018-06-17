@@ -17,27 +17,29 @@ public:
 
   void run();
 
-  void visit(const SymbolDefinition& node) override;
-  void visit(const ProgramCounterAssignment& node) override;
-  void visit(const ImpliedOperation& node) override;
-  void visit(const ImmediateOperation& node) override;
-  void visit(const AccumulatorOperation& node) override;
-  void visit(const DirectOperation& node) override;
-  void visit(const IndirectOperation& node) override;
-  void visit(const BranchOperation& node) override;
-  void visit(const OriginDirective& node) override;
-  void visit(const BufferDirective& node) override;
-  void visit(const OffsetBeginDirective& node) override;
-  void visit(const OffsetEndDirective& node) override;
-  void visit(const ObjectFileDirective& node) override;
-  void visit(const ByteDirective& node) override;
-  void visit(const WordDirective& node) override;
-  void visit(const StringDirective& node) override;
+  void visit(SymbolDefinition& node) override;
+  void visit(ProgramCounterAssignment& node) override;
+  void visit(ImpliedOperation& node) override;
+  void visit(ImmediateOperation& node) override;
+  void visit(AccumulatorOperation& node) override;
+  void visit(DirectOperation& node) override;
+  void visit(IndirectOperation& node) override;
+  void visit(BranchOperation& node) override;
+  void visit(OriginDirective& node) override;
+  void visit(BufferDirective& node) override;
+  void visit(OffsetBeginDirective& node) override;
+  void visit(OffsetEndDirective& node) override;
+  void visit(ObjectFileDirective& node) override;
+  void visit(ByteDirective& node) override;
+  void visit(WordDirective& node) override;
+  void visit(StringDirective& node) override;
 
   void uncaught(SourceError& err) override;
 
 private:
-  void processLabel(const Statement& node);
+  void processLabel(Statement& node);
+  void setLabel(Statement& node, Address value);
+  void advance(SourcePos pos, Address count);
 
   Context& context_;
 };
@@ -52,82 +54,153 @@ void DefinitionPass::run()
   context_.statements.accept(*this);
 }
 
-void DefinitionPass::visit(const SymbolDefinition& node)
+void DefinitionPass::visit(SymbolDefinition& node)
 {
+  setLabel(node, node.expr().eval(context_));
 }
 
-void DefinitionPass::visit(const ProgramCounterAssignment& node)
+void DefinitionPass::visit(ProgramCounterAssignment& node)
 {
+  context_.pc = node.expr().eval(context_);
 }
 
-void DefinitionPass::visit(const ImpliedOperation& node)
+void DefinitionPass::visit(ImpliedOperation& node)
 {
   processLabel(node);
+
+  auto length = node.instruction().encodeImplied(nullptr);
+  if (! length)
+    throwSourceError(node.pos(), "Instruction '%s' does not support implied addressing", node.instruction().name().c_str());
+
+  advance(node.pos(), *length);
 }
 
-void DefinitionPass::visit(const ImmediateOperation& node)
+void DefinitionPass::visit(ImmediateOperation& node)
 {
   processLabel(node);
+
+  auto length = node.instruction().encodeImmediate(nullptr, 0);
+  if (! length)
+    throwSourceError(node.pos(), "Instruction '%s' does not support immediate addressing", node.instruction().name().c_str());
+
+  advance(node.pos(), *length);
 }
 
-void DefinitionPass::visit(const AccumulatorOperation& node)
+void DefinitionPass::visit(AccumulatorOperation& node)
 {
   processLabel(node);
+
+  auto length = node.instruction().encodeAccumulator(nullptr);
+  if (! length)
+    throwSourceError(node.pos(), "Instruction '%s' does not support accumulator addressing", node.instruction().name().c_str());
+
+  advance(node.pos(), *length);
 }
 
-void DefinitionPass::visit(const DirectOperation& node)
+void DefinitionPass::visit(DirectOperation& node)
 {
   processLabel(node);
+
+  // This type of addressing can result in either a 2 or 3 byte instruction. To figure out
+  // whether the zero-page variation can be used, attempt to evaluate the expression.
+  // If evaluation fails, force absolute mode for all future passes. (Zero-page addressing
+  // requires all symbols referenced by the expression to be previously defined.)
+  auto addr = node.expr().tryEval(context_);
+  if (! addr)
+    node.setForceAbsolute(true);
+  auto length = node.instruction().encodeDirect(nullptr, addr.value(0), node.index(), node.forceAbsolute());
+  if (! length)
+  {
+    if (node.index() != IndexRegister::None)
+      throwSourceError(node.pos(), "Instruction '%s' does not support indexed addressing via %s",
+                       node.instruction().name().c_str(), toString(node.index()).c_str());
+    throwSourceError(node.pos(), "Instruction '%s' does not support direct addressing", node.instruction().name().c_str());
+  }
+
+  advance(node.pos(), *length);
 }
 
-void DefinitionPass::visit(const IndirectOperation& node)
+void DefinitionPass::visit(IndirectOperation& node)
 {
   processLabel(node);
+
+  auto length = node.instruction().encodeIndirect(nullptr, 0, node.index());
+  if (! length)
+  {
+    if (node.index() != IndexRegister::None)
+      throwSourceError(node.pos(), "Instruction '%s' does not support indirect addressing via %s",
+                       node.instruction().name().c_str(), toString(node.index()).c_str());
+    throwSourceError(node.pos(), "Instruction '%s' does not support indirect addressing", node.instruction().name().c_str());
+  }
+
+  advance(node.pos(), *length);
 }
 
-void DefinitionPass::visit(const BranchOperation& node)
+void DefinitionPass::visit(BranchOperation& node)
 {
   processLabel(node);
+
+  auto length = node.instruction().encodeRelative(nullptr, 0);
+  if (! length)
+    throwSourceError(node.pos(), "Instruction '%s' is not a branch instruction", node.instruction().name().c_str());
+
+  advance(node.pos(), *length);
 }
 
-void DefinitionPass::visit(const OriginDirective& node)
+void DefinitionPass::visit(OriginDirective& node)
 {
   processLabel(node);
+
+  context_.pc = node.expr().eval(context_);
 }
 
-void DefinitionPass::visit(const BufferDirective& node)
+void DefinitionPass::visit(BufferDirective& node)
 {
   processLabel(node);
+
+  advance(node.pos(), node.expr().eval(context_));
 }
 
-void DefinitionPass::visit(const OffsetBeginDirective& node)
+void DefinitionPass::visit(OffsetBeginDirective& node)
 {
   processLabel(node);
+
+  // TODO
 }
 
-void DefinitionPass::visit(const OffsetEndDirective& node)
+void DefinitionPass::visit(OffsetEndDirective& node)
 {
   processLabel(node);
+
+  // TODO
 }
 
-void DefinitionPass::visit(const ObjectFileDirective& node)
+void DefinitionPass::visit(ObjectFileDirective& node)
 {
   processLabel(node);
+
+  // TODO
 }
 
-void DefinitionPass::visit(const ByteDirective& node)
+void DefinitionPass::visit(ByteDirective& node)
 {
   processLabel(node);
+
+  advance(node.pos(), node.byteLength());
 }
 
-void DefinitionPass::visit(const WordDirective& node)
+void DefinitionPass::visit(WordDirective& node)
 {
   processLabel(node);
+
+  advance(node.pos(), node.byteLength());
 }
 
-void DefinitionPass::visit(const StringDirective& node)
+void DefinitionPass::visit(StringDirective& node)
 {
   processLabel(node);
+
+  advance(node.pos(), node.byteLength());
 }
 
 void DefinitionPass::uncaught(SourceError& err)
@@ -135,10 +208,23 @@ void DefinitionPass::uncaught(SourceError& err)
   context_.messages.add(Severity::Error, err.pos(), err.message());
 }
 
-void DefinitionPass::processLabel(const Statement& node)
+void DefinitionPass::processLabel(Statement& node)
 {
-  // TODO: remember not to add '+', etc. to symbol table!
+  setLabel(node, context_.pc);
+}
 
+void DefinitionPass::setLabel(Statement& node, Address value)
+{
+  if (! context_.symbols.set(node.label(), value))
+    throwSourceError(node.pos(), "Symbol '%s' already exists", node.label().name().c_str());
+}
+
+void DefinitionPass::advance(SourcePos pos, Address count)
+{
+  // TODO: should probably be a fatal error
+  if (count > 65536 - context_.pc)
+    throwSourceError(pos, "16-bit address overflow");
+  context_.pc += count;
 }
 
 void define(Context& context)
