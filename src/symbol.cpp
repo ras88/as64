@@ -29,7 +29,6 @@ bool SymbolTable::set(const Label& label, Address addr) noexcept
         temps_.push_back({ label.type(), addr });
       else
       {
-        std::cout << "SLOW PATH!" << std::endl;       // TODO: REMOVE
         Temporary entry{ label.type(), addr };
         auto i = std::lower_bound(std::begin(temps_), std::end(temps_), entry, [](const auto& a, const auto& b)
         {
@@ -70,9 +69,9 @@ Maybe<Address> SymbolTable::get(Address addr, int labelDelta) const noexcept
       -- i;
     while (labelDelta && i != std::end(temps_))
     {
+      ++ i;
       if (i->type == LabelType::Temporary || i->type == LabelType::TemporaryForward)
         -- labelDelta;
-      ++ i;
     }
     if (i != std::end(temps_))
       return i->addr;
@@ -80,13 +79,13 @@ Maybe<Address> SymbolTable::get(Address addr, int labelDelta) const noexcept
   }
 
   // The delta is negative, so we're going backward here.
-  while (labelDelta && i != std::begin(temps_))
+  while (labelDelta && i > std::begin(temps_))
   {
+    -- i;
     if (i->type == LabelType::Temporary || i->type == LabelType::TemporaryBackward)
       ++ labelDelta;
-    -- i;
   }
-  if (i != std::begin(temps_))
+  if (labelDelta == 0)
     return i->addr;
   return nullptr;
 }

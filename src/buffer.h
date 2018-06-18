@@ -37,10 +37,11 @@ private:
 class CodeWriter
 {
 public:
-  CodeWriter() noexcept;
-  CodeWriter(CodeBuffer& buffer) noexcept;
+  CodeWriter(CodeBuffer *buffer = nullptr) noexcept;
 
   Offset offset() const noexcept { return offset_; }
+  CodeBuffer *buffer() const noexcept { return buffer_; }
+  void attach(CodeBuffer *buffer) noexcept;
 
   void byte(Byte value) noexcept;
   void word(Word value) noexcept;

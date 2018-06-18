@@ -443,7 +443,6 @@ std::unique_ptr<ExprNode> ExprTemporarySymbol::eval(Context& context, bool throw
       return nullptr;
     throwSourceError(pos(), "No applicable temporary branch symbol found");
   }
-  std::cout << "temp symbol " << pos() << " resolved to " << *value << std::endl;
   return std::make_unique<ExprConstant>(pos(), *value);
 }
 

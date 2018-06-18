@@ -35,14 +35,15 @@ void CodeBuffer::fill(Offset offset, ByteLength count, Byte value) noexcept
 //      CodeWriter
 // ----------------------------------------------------------------------------
 
-CodeWriter::CodeWriter() noexcept
-  : buffer_(nullptr), offset_(0)
+CodeWriter::CodeWriter(CodeBuffer *buffer) noexcept
+  : buffer_(buffer), offset_(0)
 {
 }
 
-CodeWriter::CodeWriter(CodeBuffer& buffer) noexcept
-  : buffer_(&buffer), offset_(0)
+void CodeWriter::attach(CodeBuffer *buffer) noexcept
 {
+  buffer_ = buffer;
+  offset_ = 0;
 }
 
 }

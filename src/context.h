@@ -1,6 +1,7 @@
 #ifndef _INCLUDED_CASSM_CONTEXT_H
 #define _INCLUDED_CASSM_CONTEXT_H
 
+#include <memory>
 #include <vector>
 #include "source.h"
 #include "ast.h"
@@ -23,7 +24,7 @@ struct Context
   StatementList statements;
   MessageList messages;
   SymbolTable symbols;
-  std::vector<CodeBuffer> buffers;
+  std::vector<std::unique_ptr<CodeBuffer>> buffers;
 
   Address pc;
 };

@@ -46,10 +46,14 @@ private:
 CodeGenerationPass::CodeGenerationPass(Context& context)
   : context_(context)
 {
+  auto buffer = std::make_unique<CodeBuffer>();
+  writer_.attach(buffer.get());
+  context_.buffers.push_back(std::move(buffer));
 }
 
 void CodeGenerationPass::run()
 {
+  context_.pc = 0;
   context_.statements.accept(*this);
 }
 
@@ -173,6 +177,7 @@ void CodeGenerationPass::advance(SourcePos pos, Address count)
 void CodeGenerationPass::invalidInstruction()
 {
   // TODO: terminate due to internal error
+  std::cerr << "Invalid instruction" << std::endl;
   std::terminate();
 }
 
