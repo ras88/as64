@@ -26,6 +26,10 @@ int main(int argc, char **argv)
     if (context.messages.count())
       std::cerr << context.messages << std::endl;
 
+    // TODO: don't write any buffers if any errors occurred
+    for (const auto& buffer: context.buffers)
+      buffer->save();
+
     return 0;
   }
   catch (Error& err)

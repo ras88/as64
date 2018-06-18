@@ -6,8 +6,9 @@
 #include <vector>
 #include <ostream>
 #include "types.h"
+#include "str.h"
 #include "source.h"
-#include "table.h"
+#include "buffer.h"
 #include "instruction.h"
 
 namespace cassm
@@ -47,11 +48,16 @@ private:
 class Statement: public Node
 {
 public:
-  Statement(SourcePos pos) noexcept : Node(pos) { }
-  Statement(SourcePos pos, const Label& label) noexcept : Node(pos), label_(label) { }
+  Statement(SourcePos pos) noexcept : Node(pos), pc_(0) { }
+  Statement(SourcePos pos, const Label& label) noexcept : Node(pos), label_(label), pc_(0) { }
 
   const Label& label() const noexcept { return label_; }
   void setLabel(const Label& label) noexcept { label_ = label; }
+
+  Address pc() const noexcept { return pc_; }
+  void setPc(Address pc) noexcept { pc_ = pc; }
+  CodeRange range() const noexcept { return range_; }
+  void setRange(const CodeRange& range) noexcept { range_ = range; }
 
   virtual void accept(StatementVisitor& visitor) = 0;
 
@@ -60,6 +66,8 @@ protected:
 
 private:
   Label label_;
+  Address pc_;
+  CodeRange range_;
 };
 
 // ----------------------------------------------------------------------------
@@ -347,6 +355,8 @@ public:
 
   ByteSelector selector() const noexcept { return selector_; }
   ByteLength byteLength() const noexcept { return args_.size(); }
+  const auto begin() const { return args_.begin(); }
+  const auto end() const { return args_.end(); }
 
   void accept(StatementVisitor& visitor) override;
   void dump(std::ostream& s, int level = 0) const noexcept override;
@@ -367,6 +377,8 @@ public:
     : Directive(pos), args_(std::move(args)) { }
 
   ByteLength byteLength() const noexcept { return args_.size() * 2; }
+  const auto begin() const { return args_.begin(); }
+  const auto end() const { return args_.end(); }
 
   void accept(StatementVisitor& visitor) override;
   void dump(std::ostream& s, int level = 0) const noexcept override;
@@ -385,6 +397,8 @@ public:
   StringDirective(SourcePos pos, StringEncoding encoding, const std::string& str) noexcept
     : Directive(pos), encoding_(encoding), str_(str) { }
 
+  StringEncoding encoding() const noexcept { return encoding_; }
+  const std::string& str() const noexcept { return str_; }
   ByteLength byteLength() const noexcept { return str_.length(); }
 
   void accept(StatementVisitor& visitor) override;
@@ -419,6 +433,8 @@ public:
   virtual void visit(WordDirective& node) { }
   virtual void visit(StringDirective& node) { }
 
+  virtual void before(Statement& node) { }
+  virtual void after(Statement& node) { }
   virtual void uncaught(SourceError& err) { }
 };
 
@@ -432,7 +448,10 @@ public:
   void add(std::unique_ptr<Statement> statement) noexcept;
 
   void accept(StatementVisitor& visitor) const;
-  void dump(std::ostream& s, int level = 0) const noexcept;;
+  void dump(std::ostream& s, int level = 0) const noexcept;
+
+  const auto begin() const { return statements_.begin(); }
+  const auto end() const { return statements_.end(); }
 
 private:
   std::vector<std::unique_ptr<Statement>> statements_;

@@ -357,7 +357,9 @@ void StatementList::accept(StatementVisitor& visitor) const
   {
     try
     {
+      visitor.before(*statement);
       statement->accept(visitor);
+      visitor.after(*statement);
     }
     catch (SourceError& err)
     {

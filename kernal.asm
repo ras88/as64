@@ -3,10 +3,7 @@
 ;configuration and IRQ, then installs the screen I/O kernal at $E000
 
    .org $8000
-   .dvo 8
-   .dvi 9
-   .burst
-   .obj "901"
+   .obj "001"
 
 ;Operating system routine equates
 

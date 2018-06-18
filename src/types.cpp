@@ -26,31 +26,16 @@ Maybe<Byte> select(ByteSelector selector, Word value) noexcept
   switch (selector)
   {
     case ByteSelector::Low:
-      return value & 0xff;
+      return static_cast<Byte>(value);
 
     case ByteSelector::High:
-      return value >> 8;
+      return static_cast<Byte>(value >> 8);
 
     default:
       if (value > 0xff)
         return nullptr;
-      return value;
+      return static_cast<Byte>(value);
   }
-}
-
-// ----------------------------------------------------------------------------
-//      StringEncoding
-// ----------------------------------------------------------------------------
-
-static EnumTags<StringEncoding> g_stringEncodingTags =
-{
-  { StringEncoding::Petscii,          "PETSCII" },
-  { StringEncoding::Screen,           "Screen" }
-};
-
-std::string toString(StringEncoding encoding) noexcept
-{
-  return g_stringEncodingTags.fromValue(encoding);
 }
 
 // ----------------------------------------------------------------------------

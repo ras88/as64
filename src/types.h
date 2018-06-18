@@ -21,6 +21,12 @@ using Offset = uint16_t;
 #define CHECK_FORMAT(formatIndex, argIndex)
 #endif
 
+#ifdef _WIN32
+#define PATH_SEPARATOR '\\'
+#else
+#define PATH_SEPARATOR '/'
+#endif
+
 // ----------------------------------------------------------------------------
 //      Maybe
 // ----------------------------------------------------------------------------
@@ -63,18 +69,6 @@ template<typename T> Maybe<T>& Maybe<T>::operator=(T value) noexcept
   has_ = true;
   return *this;
 }
-
-// ----------------------------------------------------------------------------
-//      StringEncoding
-// ----------------------------------------------------------------------------
-
-enum class StringEncoding
-{
-  Petscii,
-  Screen
-};
-
-std::string toString(StringEncoding encoding) noexcept;
 
 // ----------------------------------------------------------------------------
 //      ByteSelector

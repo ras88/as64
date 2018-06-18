@@ -8,6 +8,15 @@
 namespace cassm
 {
 
+static bool isSafeFilename(const std::string& filename) noexcept
+{
+  for (const char *p = filename.c_str(); *p; ++ p)
+    if (! std::isalnum(*p) && *p != '-' && *p != '_' && *p != ' ' && *p != '.')
+      return false;
+  
+  return true;
+}
+
 // ----------------------------------------------------------------------------
 //      Parser
 // ----------------------------------------------------------------------------
@@ -338,6 +347,8 @@ std::unique_ptr<Statement> Parser::handleObj(LineReader& reader, SourcePos pos)
   auto token = reader.nextToken();
   if (token.type != TokenType::Literal)
     throwSourceError(token.pos, "Expected a quoted filename");
+  if (! isSafeFilename(token.text))
+    throwSourceError(token.pos, "Unsafe filename");
   return std::make_unique<ObjectFileDirective>(pos, token.text);
 }
 
@@ -409,8 +420,9 @@ std::unique_ptr<ExprNode> Parser::parseOperand(LineReader& reader, bool optional
     return std::make_unique<ExprSymbol>(token.pos, token.text);
   if (token.type == TokenType::Literal)
   {
-    // TODO: Expect a single character and return its PETSCII value
-    return std::make_unique<ExprConstant>(token.pos, 0);
+    if (token.text.length() != 1)
+      throwSourceError(token.pos, "Expected a single character");
+    return std::make_unique<ExprConstant>(token.pos, encode(StringEncoding::Petscii, token.text[0]));
   }
   if (token.type == TokenType::Punctuator)
   {
@@ -420,8 +432,12 @@ std::unique_ptr<ExprNode> Parser::parseOperand(LineReader& reader, bool optional
         return std::make_unique<ExprProgramCounter>(token.pos);
 
       case '@':
-        // TODO: screen code
-        return std::make_unique<ExprConstant>(token.pos, 0);
+      {
+        auto literal = reader.nextToken();
+        if (literal.type != TokenType::Literal || literal.text.length() != 1)
+          throwSourceError(literal.pos, "Expected a single quoted character");
+        return std::make_unique<ExprConstant>(token.pos, encode(StringEncoding::Screen, literal.text[0]));
+      }
 
       case '+':
       case '-':

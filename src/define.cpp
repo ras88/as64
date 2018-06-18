@@ -1,4 +1,5 @@
 #include <iostream>
+#include <vector>
 #include "define.h"
 #include "context.h"
 #include "ast.h"
@@ -29,11 +30,11 @@ public:
   void visit(BufferDirective& node) override;
   void visit(OffsetBeginDirective& node) override;
   void visit(OffsetEndDirective& node) override;
-  void visit(ObjectFileDirective& node) override;
   void visit(ByteDirective& node) override;
   void visit(WordDirective& node) override;
   void visit(StringDirective& node) override;
 
+  void before(Statement& node) override;
   void uncaught(SourceError& err) override;
 
 private:
@@ -42,6 +43,7 @@ private:
   void advance(SourcePos pos, Address count);
 
   Context& context_;
+  std::vector<Address> offsetStack_;
 };
 
 DefinitionPass::DefinitionPass(Context& context)
@@ -52,6 +54,11 @@ DefinitionPass::DefinitionPass(Context& context)
 void DefinitionPass::run()
 {
   context_.statements.accept(*this);
+}
+
+void DefinitionPass::before(Statement& node)
+{
+  node.setPc(context_.pc);
 }
 
 void DefinitionPass::visit(SymbolDefinition& node)
@@ -165,21 +172,19 @@ void DefinitionPass::visit(OffsetBeginDirective& node)
 {
   processLabel(node);
 
-  // TODO
+  offsetStack_.push_back(context_.pc);
+  context_.pc = node.expr().eval(context_);
 }
 
 void DefinitionPass::visit(OffsetEndDirective& node)
 {
   processLabel(node);
 
-  // TODO
-}
+  if (offsetStack_.empty())
+    throwSourceError(node.pos(), "Program counter is not offset");
 
-void DefinitionPass::visit(ObjectFileDirective& node)
-{
-  processLabel(node);
-
-  // TODO
+  context_.pc = offsetStack_.back();
+  offsetStack_.pop_back();
 }
 
 void DefinitionPass::visit(ByteDirective& node)
@@ -225,6 +230,14 @@ void DefinitionPass::advance(SourcePos pos, Address count)
   if (count > 65536 - context_.pc)
     throwSourceError(pos, "16-bit address overflow");
   context_.pc += count;
+
+  // The original program counter continues to advance even when one or more offsets is in effect.
+  for (auto& addr: offsetStack_)
+  {
+    if (count > 65536 - addr)
+      throwSourceError(pos, "16-bit address overflow");
+    addr += count;
+  }
 }
 
 void define(Context& context)
