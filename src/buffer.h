@@ -25,6 +25,7 @@ public:
 
   bool isEmpty() const noexcept { return data_.empty(); }
   ByteLength size() const noexcept { return data_.size(); }
+  Byte operator[](Offset offset) const noexcept { return data_[offset]; }
 
   void writeByte(Offset offset, Byte value) noexcept;
   void writeWord(Offset offset, Word value) noexcept;
@@ -98,6 +99,10 @@ public:
   CodeBuffer *buffer() const noexcept { return buffer_; }
   Offset start() const noexcept { return start_; }
   Offset end() const noexcept { return end_; }
+  ByteLength length() const noexcept { return end_ - start_; }
+  std::string filename() const noexcept { return buffer_ ? buffer_->filename() : ""; }
+
+  Byte operator[](Offset offset) const noexcept { return (*buffer_)[offset + start_]; }
 
   std::string toString() const noexcept;
   friend std::ostream& operator<<(std::ostream& s, const CodeRange& pos) noexcept;

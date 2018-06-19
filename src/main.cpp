@@ -3,6 +3,7 @@
 #include "parser.h"
 #include "define.h"
 #include "emit.h"
+#include "lister.h"
 #include "context.h"
 
 using namespace cassm;
@@ -29,6 +30,8 @@ int main(int argc, char **argv)
     // TODO: don't write any buffers if any errors occurred
     for (const auto& buffer: context.buffers)
       buffer->save();
+
+    list(std::cout, context);
 
     return 0;
   }

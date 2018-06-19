@@ -31,6 +31,7 @@ public:
   virtual ~Node() noexcept { }
 
   SourcePos pos() const noexcept { return pos_; }
+  std::string sourceText() const noexcept { return pos_.line() ? pos_.line()->text() : ""; }
 
   virtual void dump(std::ostream& s, int level = 0) const noexcept = 0;
 

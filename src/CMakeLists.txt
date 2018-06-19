@@ -12,6 +12,7 @@ add_executable(cassm
 	symbol.cpp
 	define.cpp
 	emit.cpp
+	lister.cpp
 	main.cpp
 )
 
