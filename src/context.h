@@ -26,7 +26,7 @@ struct Context
   SymbolTable symbols;
   std::vector<std::unique_ptr<CodeBuffer>> buffers;
 
-  Address pc;
+  ProgramCounter pc;
 };
 
 }

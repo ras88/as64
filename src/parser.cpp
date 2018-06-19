@@ -1,7 +1,7 @@
 #include <iostream>
+#include <unordered_map>
 #include "str.h"
 #include "error.h"
-#include "table.h"
 #include "parser.h"
 #include "context.h"
 
@@ -59,13 +59,21 @@ private:
   Context& context_;
 
   using DirectiveHandler = std::unique_ptr<Statement> (Parser::*)(LineReader& reader, SourcePos pos);
-  static Table<DirectiveHandler> directives_;
+  static std::unordered_map<std::string, DirectiveHandler> directives_;
 };
 
 void parseFile(Context& context, const std::string& filename)
 {
   Parser parser(context);
   parser.file(filename);
+  parser.parse();
+}
+
+void parseFiles(Context& context, const std::vector<std::string>& filenames)
+{
+  Parser parser(context);
+  for (const auto& filename: filenames)
+    parser.file(filename);
   parser.parse();
 }
 
@@ -87,9 +95,11 @@ void Parser::parse()
     try
     {
       LineReader reader(*line);
-      context_.statements.add(handleStatement(reader));
-      
-      // TODO: possibly support ':' for multiple statements on a single line
+      do
+      {
+        context_.statements.add(handleStatement(reader));
+      }
+      while (reader.optionalPunctuator(':'));
       auto token = reader.nextToken();
       if (token.type != TokenType::End)
         throwSourceError(token.pos, "Unexpected character");
@@ -258,11 +268,12 @@ std::unique_ptr<Statement> Parser::handleDirective(LineReader& reader)
   if (token.type != TokenType::Identifier)
     throwSourceError(token.pos, "Expected a directive name");
 
-  auto *handler = directives_.get(toLowerCase(token.text));
-  if (! handler)
+  auto i = directives_.find(toLowerCase(token.text));
+  if (i == std::end(directives_))
     throwSourceError(token.pos, "Unknown directive '%s'", token.text.c_str());
 
-  return (this->**handler)(reader, token.pos);
+  auto handler = i->second;
+  return (this->*handler)(reader, token.pos);
 }
 
 std::unique_ptr<Statement> Parser::handleOrg(LineReader& reader, SourcePos pos)
@@ -359,7 +370,7 @@ std::unique_ptr<Statement> Parser::handleUnsupported(LineReader& reader, SourceP
   {
     token = reader.nextToken();
   }
-  while (token.type != TokenType::End);                 // TODO: adjust logic if ':' is supported
+  while (token.type != TokenType::End && (token.type != TokenType::Punctuator || token.punctuator != ':'));
   context_.messages.warning(pos, "Ignored unsupported statement");
   return std::make_unique<EmptyStatement>(pos);
 }
@@ -378,24 +389,10 @@ std::unique_ptr<Expression> Parser::parseExpression(LineReader& reader, bool opt
     switch (op)
     {
       case '+':
-        root = std::make_unique<ExprOperator>(root->pos(), std::move(root), parseOperand(reader), op,
-                                              [](int a, int b) { return a + b; });
-        break;
-
       case '-':
-        root = std::make_unique<ExprOperator>(root->pos(), std::move(root), parseOperand(reader), op,
-                                              [](int a, int b) { return a - b; });
-        break;
-
       case '*':
-        root = std::make_unique<ExprOperator>(root->pos(), std::move(root), parseOperand(reader), op,
-                                              [](int a, int b) { return a * b; });
-        break;
-
       case '/':
-        // TODO: check for divide by zero in the handler
-        root = std::make_unique<ExprOperator>(root->pos(), std::move(root), parseOperand(reader), op,
-                                              [](int a, int b) { return a / b; });
+        root = std::make_unique<ExprOperator>(root->pos(), std::move(root), parseOperand(reader), op);
         break;
 
       default:
@@ -508,33 +505,33 @@ IndexRegister Parser::optionalIndex(LineReader& reader, SourcePos *pos)
   throwSourceError(token.pos, "Expected 'x' or 'y'");
 }
 
-Table<Parser::DirectiveHandler> Parser::directives_([](auto& table)
+std::unordered_map<std::string, Parser::DirectiveHandler> Parser::directives_ =
 {
-  table.emplace("org",      &Parser::handleOrg);
-  table.emplace("off",      &Parser::handleOff);
-  table.emplace("ofe",      &Parser::handleOfe);
-  table.emplace("buf",      &Parser::handleBuf);
-  table.emplace("byte",     &Parser::handleByte);
-  table.emplace("word",     &Parser::handleWord);
-  table.emplace("asc",      &Parser::handleAsc);
-  table.emplace("scr",      &Parser::handleScr);
-  table.emplace("seq",      &Parser::handleSeq);
-  table.emplace("obj",      &Parser::handleObj);
-  table.emplace("dvi",      &Parser::handleUnsupported);
-  table.emplace("dvo",      &Parser::handleUnsupported);
-  table.emplace("burst",    &Parser::handleUnsupported);
-  table.emplace("mem",      &Parser::handleUnsupported);
-  table.emplace("dis",      &Parser::handleUnsupported);
-  table.emplace("out",      &Parser::handleUnsupported);
-  table.emplace("bas",      &Parser::handleUnsupported);
-  table.emplace("link",     &Parser::handleUnsupported);
-  table.emplace("loop",     &Parser::handleUnsupported);
-  table.emplace("file",     &Parser::handleUnsupported);
-  table.emplace("lst",      &Parser::handleUnsupported);
-  table.emplace("top",      &Parser::handleUnsupported);
-  table.emplace("sst",      &Parser::handleUnsupported);
-  table.emplace("psu",      &Parser::handleUnsupported);
-  table.emplace("fas",      &Parser::handleUnsupported);
-});
+  { "org",                  &Parser::handleOrg },
+  { "off",                  &Parser::handleOff },
+  { "ofe",                  &Parser::handleOfe },
+  { "buf",                  &Parser::handleBuf },
+  { "byte",                 &Parser::handleByte },
+  { "word",                 &Parser::handleWord },
+  { "asc",                  &Parser::handleAsc },
+  { "scr",                  &Parser::handleScr },
+  { "seq",                  &Parser::handleSeq },
+  { "obj",                  &Parser::handleObj },
+  { "dvi",                  &Parser::handleUnsupported },
+  { "dvo",                  &Parser::handleUnsupported },
+  { "burst",                &Parser::handleUnsupported },
+  { "mem",                  &Parser::handleUnsupported },
+  { "dis",                  &Parser::handleUnsupported },
+  { "out",                  &Parser::handleUnsupported },
+  { "bas",                  &Parser::handleUnsupported },
+  { "link",                 &Parser::handleUnsupported },
+  { "loop",                 &Parser::handleUnsupported },
+  { "file",                 &Parser::handleUnsupported },
+  { "lst",                  &Parser::handleUnsupported },
+  { "top",                  &Parser::handleUnsupported },
+  { "sst",                  &Parser::handleUnsupported },
+  { "psu",                  &Parser::handleUnsupported },
+  { "fas",                  &Parser::handleUnsupported }
+};
 
 }

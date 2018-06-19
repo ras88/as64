@@ -316,8 +316,8 @@ void LineReader::unget(Token& token) noexcept
 //      SourceError
 // ----------------------------------------------------------------------------
 
-SourceError::SourceError(SourcePos pos, const std::string& message) noexcept
-  : message_(message), pos_(pos)
+SourceError::SourceError(SourcePos pos, const std::string& message, bool fatal) noexcept
+  : message_(message), pos_(pos), fatal_(fatal)
 {
 }
 
@@ -336,6 +336,16 @@ void throwSourceError(SourcePos pos, const char *format, ...)
   char buf[1024];
   vsnprintf(buf, sizeof(buf), format, ap);
   throw SourceError(pos, buf);
+}
+
+void throwFatalSourceError(SourcePos pos, const char *format, ...)
+{
+  va_list ap;
+  va_start(ap, format);
+
+  char buf[1024];
+  vsnprintf(buf, sizeof(buf), format, ap);
+  throw SourceError(pos, buf, true);
 }
 
 }

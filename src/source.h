@@ -160,20 +160,23 @@ private:
 class SourceError : public Error
 {
 public:
-  SourceError(SourcePos pos, const std::string& message) noexcept;
+  SourceError(SourcePos pos, const std::string& message, bool fatal = false) noexcept;
 
   const char *what() const noexcept override { return "Source Error"; }
   std::string message() const noexcept override { return message_; }
   std::string format() const noexcept override;
 
   SourcePos pos() const noexcept { return pos_; }
+  bool isFatal() const noexcept { return fatal_; }
 
 private:
   SourcePos pos_;
   std::string message_;
+  bool fatal_;
 };
 
 [[noreturn]] void throwSourceError(SourcePos pos, const char *format, ...) CHECK_FORMAT(2, 3);
+[[noreturn]] void throwFatalSourceError(SourcePos pos, const char *format, ...) CHECK_FORMAT(2, 3);
 
 }
 #endif

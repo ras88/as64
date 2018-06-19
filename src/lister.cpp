@@ -41,19 +41,32 @@ void list(std::ostream& s, Context& context)
 {
   char buf[1024];
 
+  size_t maxFilenameLength = 0;
+  for (const auto& node: context.statements)
+  {
+    auto length = node->pos().line()->filename().length();
+    if (length > maxFilenameLength)
+      maxFilenameLength = length;
+  }
+
+  const Line *prevLine = nullptr;
   for (const auto& node: context.statements)
   {
     auto range = node->range();
-    snprintf(buf, sizeof(buf), "%04x [+%04x]  %s    %s\n",
-             node->pc(), range.start(), bytesToHex(range, 0), node->sourceText().c_str());
-    s << buf;
-
-    for (Offset offset = 3; offset < range.length(); offset += 3)
+    const auto *line = node->pos().line();
+    Offset offset = 0;
+    do
     {
-      snprintf(buf, sizeof(buf), "%04x [+%04x]  %s\n",
-               node->pc(), range.start() + offset, bytesToHex(range, offset));
+      snprintf(buf, sizeof(buf), "%s:%05d [+%04x] %04x: %s    %s\n",
+               padRight(line->filename(), maxFilenameLength).c_str(), line->lineNumber(),
+               range.start() + offset, node->pc() + offset, bytesToHex(range, offset),
+               offset < 3 && line != prevLine ? node->sourceText().c_str() : "");
       s << buf;
+      offset += 3;
     }
+    while (offset < range.length());
+
+    prevLine = line;
   }
 }
 

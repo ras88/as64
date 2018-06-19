@@ -33,11 +33,11 @@ std::ostream& operator<<(std::ostream& s, const Message& obj) noexcept
 // ----------------------------------------------------------------------------
 
 MessageList::MessageList() noexcept
-  : errorCount_(0), warningCount_(0)
+  : errorCount_(0), warningCount_(0), fatal_(false)
 {
 }
 
-void MessageList::add(Severity severity, SourcePos pos, const std::string& summary) noexcept
+void MessageList::add(Severity severity, SourcePos pos, const std::string& summary, bool fatal) noexcept
 {
   Message message{ severity, pos, summary };
   auto i = std::lower_bound(std::begin(messages_), std::end(messages_), message);
@@ -46,6 +46,8 @@ void MessageList::add(Severity severity, SourcePos pos, const std::string& summa
     ++ errorCount_;
   else
     ++ warningCount_;
+  if (fatal)
+    fatal_ = true;
 }
 
 void MessageList::error(SourcePos pos, const char *format, ...) noexcept

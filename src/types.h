@@ -9,6 +9,7 @@ namespace cassm
 {
 
 using Address = uint16_t;
+using ProgramCounter = uint32_t;
 using ByteLength = uint16_t;
 using Byte = uint8_t;
 using SByte = int8_t;

@@ -436,7 +436,7 @@ public:
 
   virtual void before(Statement& node) { }
   virtual void after(Statement& node) { }
-  virtual void uncaught(SourceError& err) { }
+  virtual bool uncaught(SourceError& err) { }         // Return false to stop visitation or true to continue
 };
 
 // ----------------------------------------------------------------------------
@@ -558,10 +558,8 @@ public:
 class ExprOperator : public ExprNode
 {
 public:
-  using Handler = int(*)(int, int);
-
-  ExprOperator(SourcePos pos, std::unique_ptr<ExprNode> left, std::unique_ptr<ExprNode> right, char op, Handler handler)
-    : ExprNode(pos), left_(std::move(left)), right_(std::move(right)), op_(op), handler_(handler) { }
+  ExprOperator(SourcePos pos, std::unique_ptr<ExprNode> left, std::unique_ptr<ExprNode> right, char op)
+    : ExprNode(pos), left_(std::move(left)), right_(std::move(right)), op_(op) { }
 
   std::unique_ptr<ExprNode> eval(Context& context, bool throwUndefined) override;
   void dump(std::ostream& s, int indent = 0) const noexcept override;
@@ -570,7 +568,6 @@ private:
   std::unique_ptr<ExprNode> left_;
   std::unique_ptr<ExprNode> right_;
   char op_;
-  Handler handler_;
 };
 
 }

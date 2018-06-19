@@ -32,9 +32,10 @@ public:
 
   void before(Statement& node) override;
   void after(Statement& node) override;
-  void uncaught(SourceError& err) override;
+  bool uncaught(SourceError& err) override;
 
 private:
+  void willEmit();
   void invalidInstruction();
   void newBuffer();
 
@@ -67,17 +68,23 @@ void CodeGenerationPass::after(Statement& node)
 
 void CodeGenerationPass::visit(ProgramCounterAssignment& node)
 {
-  // TODO: emit zeros as necessary to reach the target address 
+  willEmit();
+  auto addr = node.expr().eval(context_);
+  if (! writer_.buffer()->isEmpty() && addr < context_.pc)
+    throwSourceError(node.pos(), "Invalid program counter assignment (address $%04x < pc $%04x)", addr, context_.pc);
+  writer_.fill(addr - context_.pc);
 }
 
 void CodeGenerationPass::visit(ImpliedOperation& node)
 {
+  willEmit();
   if (! node.instruction().encodeImplied(&writer_))
     invalidInstruction();
 }
 
 void CodeGenerationPass::visit(ImmediateOperation& node)
 {
+  willEmit();
   auto value = select(node.selector(), node.expr().eval(context_));
   if (! value)
     throwSourceError(node.pos(), "Expected a value between 0 and 255; got %d", node.expr().eval(context_));
@@ -87,12 +94,14 @@ void CodeGenerationPass::visit(ImmediateOperation& node)
 
 void CodeGenerationPass::visit(AccumulatorOperation& node)
 {
+  willEmit();
   if (! node.instruction().encodeAccumulator(&writer_))
     invalidInstruction();
 }
 
 void CodeGenerationPass::visit(DirectOperation& node)
 {
+  willEmit();
   auto addr = node.expr().eval(context_);
   if (! node.instruction().encodeDirect(&writer_, addr, node.index(), node.forceAbsolute()))
     invalidInstruction();
@@ -100,6 +109,7 @@ void CodeGenerationPass::visit(DirectOperation& node)
 
 void CodeGenerationPass::visit(IndirectOperation& node)
 {
+  willEmit();
   auto addr = node.expr().eval(context_);
   if ( ! node.instruction().encodeIndirect(&writer_, addr, node.index()))
     invalidInstruction();
@@ -107,6 +117,7 @@ void CodeGenerationPass::visit(IndirectOperation& node)
 
 void CodeGenerationPass::visit(BranchOperation& node)
 {
+  willEmit();
   auto addr = node.expr().eval(context_);
   if (! node.instruction().encodeRelative(&writer_, context_.pc, addr))
     throwSourceError(node.pos(), "Branch out of range");
@@ -114,6 +125,7 @@ void CodeGenerationPass::visit(BranchOperation& node)
 
 void CodeGenerationPass::visit(BufferDirective& node)
 {
+  willEmit();
   writer_.fill(node.expr().eval(context_));
 }
 
@@ -123,12 +135,11 @@ void CodeGenerationPass::visit(ObjectFileDirective& node)
     newBuffer();
   auto& buffer = *writer_.buffer();
   buffer.setFilename(node.filename());
-  buffer.setOrigin(context_.pc);
-  // TODO: how does the first buffer get an origin if there's no .obj directive?
 }
 
 void CodeGenerationPass::visit(ByteDirective& node)
 {
+  willEmit();
   for (const auto& expr: node)
   {
     auto value = select(node.selector(), expr->eval(context_));
@@ -140,20 +151,29 @@ void CodeGenerationPass::visit(ByteDirective& node)
 
 void CodeGenerationPass::visit(WordDirective& node)
 {
+  willEmit();
   for (const auto& expr: node)
     writer_.word(expr->eval(context_));
 }
 
 void CodeGenerationPass::visit(StringDirective& node)
 {
+  willEmit();
   auto str = encode(node.encoding(), node.str());
   for (const auto& c: str)
     writer_.byte(c);
 }
 
-void CodeGenerationPass::uncaught(SourceError& err)
+void CodeGenerationPass::willEmit()
 {
-  context_.messages.add(Severity::Error, err.pos(), err.message());
+  if (writer_.buffer()->isEmpty())
+    writer_.buffer()->setOrigin(context_.pc);
+}
+
+bool CodeGenerationPass::uncaught(SourceError& err)
+{
+  context_.messages.add(Severity::Error, err.pos(), err.message(), err.isFatal());
+  return ! err.isFatal();
 }
 
 void CodeGenerationPass::invalidInstruction()

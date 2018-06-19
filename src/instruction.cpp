@@ -4,6 +4,7 @@
 #include "enum.h"
 #include "table.h"
 #include "buffer.h"
+#include "table.h"
 #include "instruction.h"
 
 namespace cassm
@@ -99,7 +100,7 @@ struct InstructionDef
   OpcodeArray opcodes;
 };
 
-constexpr int ____ = -1;
+constexpr Opcode ____ = -1;
 
 static InstructionDef g_table[] =
 {

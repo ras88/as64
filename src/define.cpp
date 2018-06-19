@@ -35,12 +35,12 @@ public:
   void visit(StringDirective& node) override;
 
   void before(Statement& node) override;
-  void uncaught(SourceError& err) override;
+  bool uncaught(SourceError& err) override;
 
 private:
   void processLabel(Statement& node);
   void setLabel(Statement& node, Address value);
-  void advance(SourcePos pos, Address count);
+  void advance(SourcePos pos, ByteLength count);
 
   Context& context_;
   std::vector<Address> offsetStack_;
@@ -208,9 +208,10 @@ void DefinitionPass::visit(StringDirective& node)
   advance(node.pos(), node.byteLength());
 }
 
-void DefinitionPass::uncaught(SourceError& err)
+bool DefinitionPass::uncaught(SourceError& err)
 {
-  context_.messages.add(Severity::Error, err.pos(), err.message());
+  context_.messages.add(Severity::Error, err.pos(), err.message(), err.isFatal());
+  return ! err.isFatal();
 }
 
 void DefinitionPass::processLabel(Statement& node)
@@ -224,18 +225,17 @@ void DefinitionPass::setLabel(Statement& node, Address value)
     throwSourceError(node.pos(), "Symbol '%s' already exists", node.label().name().c_str());
 }
 
-void DefinitionPass::advance(SourcePos pos, Address count)
+void DefinitionPass::advance(SourcePos pos, ByteLength count)
 {
-  // TODO: should probably be a fatal error
-  if (count > 65536 - context_.pc)
-    throwSourceError(pos, "16-bit address overflow");
+  if (context_.pc + count > 65536)
+    throwFatalSourceError(pos, "16-bit address overflow");
   context_.pc += count;
 
   // The original program counter continues to advance even when one or more offsets is in effect.
   for (auto& addr: offsetStack_)
   {
     if (count > 65536 - addr)
-      throwSourceError(pos, "16-bit address overflow");
+      throwFatalSourceError(pos, "16-bit address overflow");
     addr += count;
   }
 }

@@ -15,6 +15,8 @@ std::string toLowerCase(const std::string& str);
 std::string toUpperCase(const std::string& str);
 int stoi(const std::string& str, int defaultValue = 0);
 std::string trim(const std::string& str);
+std::string padLeft(const std::string& str, size_t width);
+std::string padRight(const std::string& str, size_t width);
 
 // ----------------------------------------------------------------------------
 //      StringEncoding

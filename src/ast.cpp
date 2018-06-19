@@ -363,7 +363,8 @@ void StatementList::accept(StatementVisitor& visitor) const
     }
     catch (SourceError& err)
     {
-      visitor.uncaught(err);
+      if (! visitor.uncaught(err))
+        break;;
     }
   }
 }
@@ -485,10 +486,33 @@ std::unique_ptr<ExprNode> ExprOperator::eval(Context& context, bool throwUndefin
   auto a = left_->value(), b = right_->value();
   if (a && b)
   {
-    auto result = handler_(*a, *b);
+    Address result;
+    switch (op_)
+    {
+      case '+':
+        result = *a + *b;
+        break;
+
+      case '-':
+        result = *a - *b;
+        break;
+
+      case '*':
+        result = *a * *b;
+        break;
+
+      case '/':
+        if (*b == 0)
+          throwSourceError(pos(), "Integer division by zero");
+        result = *a / *b;
+        break;
+
+      default:
+        throwSourceError(pos(), "Invalid expression operator '%c'", op_);
+    }
     if (result < 0 || result > 0xffff)
       throwSourceError(pos(), "Invalid operation result (%d); expected a number between 0 and 65535", result);
-    return std::make_unique<ExprConstant>(pos(), handler_(*a, *b));
+    return std::make_unique<ExprConstant>(pos(), result);
   }
 
   return nullptr;

@@ -1,3 +1,2 @@
-* List files
 * Conditionals
 * Macros?

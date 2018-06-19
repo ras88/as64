@@ -3,6 +3,7 @@
 
 #include <string>
 #include <array>
+#include <cstdint>
 
 namespace cassm
 {
@@ -56,7 +57,7 @@ bool isZeroPage(AddrMode mode) noexcept;
 //      Opcode
 // ----------------------------------------------------------------------------
 
-using Opcode = int;
+using Opcode = int16_t;
 
 constexpr bool isValid(Opcode opcode) noexcept { return opcode >= 0; }
 

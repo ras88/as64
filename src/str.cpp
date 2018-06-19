@@ -52,6 +52,20 @@ std::string trim(const std::string& str)
   return std::string(start, end - start);
 }
 
+std::string padLeft(const std::string& str, size_t width)
+{
+  if (str.length() >= width)
+    return str;
+  return std::string(' ', width - str.length()) + str;
+}
+
+std::string padRight(const std::string& str, size_t width)
+{
+  if (str.length() >= width)
+    return str;
+  return str + std::string(' ', width - str.length());
+}
+
 // ----------------------------------------------------------------------------
 //      StringEncoding
 // ----------------------------------------------------------------------------

@@ -46,8 +46,9 @@ public:
   int count() const noexcept { return messages_.size(); }
   int errorCount() const noexcept { return errorCount_; }
   int warningCount() const noexcept { return warningCount_; }
+  bool hasFatalError() const noexcept { return fatal_; }
 
-  void add(Severity severity, SourcePos pos, const std::string& summary) noexcept;
+  void add(Severity severity, SourcePos pos, const std::string& summary, bool fatal = false) noexcept;
   void error(SourcePos pos, const char *format, ...) noexcept CHECK_FORMAT(3, 4);
   void warning(SourcePos pos, const char *format, ...) noexcept CHECK_FORMAT(3, 4);
 
@@ -57,6 +58,7 @@ private:
   std::vector<Message> messages_;
   int errorCount_;
   int warningCount_;
+  bool fatal_;
 };
 
 }
