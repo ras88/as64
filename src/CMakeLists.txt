@@ -1,6 +1,7 @@
 add_executable(cassm
 	types.cpp
 	str.cpp
+	path.cpp
 	enum.cpp
 	error.cpp
 	message.cpp

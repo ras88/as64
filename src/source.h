@@ -24,6 +24,7 @@ public:
   Line(SourceStream& stream, int fileIndex, int lineNumber, std::string&& text) noexcept;
 
   std::string filename() const noexcept;
+  std::string shortFilename() const noexcept;
   int lineNumber() const noexcept { return lineNumber_; }
 
   size_t length() const noexcept { return text_.length(); }
@@ -50,9 +51,17 @@ public:
   Line *nextLine();
   void includeFile(const std::string& filename);
 
-  std::string filename(int fileIndex) const noexcept { return filenames_[fileIndex]; }
+  std::string filename(int fileIndex) const noexcept { return files_[fileIndex].filename; }
+  std::string shortFilename(int fileIndex) const noexcept { return files_[fileIndex].shortFilename; }
 
 private:
+  struct FileInfo
+  {
+    std::string filename;
+    std::string shortFilename;
+
+  };
+
   struct Source
   {
     Source(int fileIndex, std::unique_ptr<std::istream> input)
@@ -64,7 +73,7 @@ private:
   };
 
   std::stack<Source> sources_;
-  std::vector<std::string> filenames_;
+  std::vector<FileInfo> files_;
   std::vector<std::unique_ptr<Line>> lines_;
 };
 
@@ -177,6 +186,24 @@ private:
 
 [[noreturn]] void throwSourceError(SourcePos pos, const char *format, ...) CHECK_FORMAT(2, 3);
 [[noreturn]] void throwFatalSourceError(SourcePos pos, const char *format, ...) CHECK_FORMAT(2, 3);
+
+// ----------------------------------------------------------------------------
+//      DuplicateIncludeError
+// ----------------------------------------------------------------------------
+
+class DuplicateIncludeError : public GeneralError
+{
+public:
+  DuplicateIncludeError(const std::string& filename) noexcept : filename_(filename) { }
+
+  const char *what() const noexcept override { return "Duplicate Include Error"; }
+  std::string message() const noexcept override;
+
+  std::string filename() const noexcept { return filename_; }
+
+private:
+  std::string filename_;
+};
 
 }
 #endif

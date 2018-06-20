@@ -19,10 +19,18 @@ public:
 };
 
 // ----------------------------------------------------------------------------
+//      GeneralError
+// ----------------------------------------------------------------------------
+
+class GeneralError : public Error
+{
+};
+
+// ----------------------------------------------------------------------------
 //      SystemError
 // ----------------------------------------------------------------------------
 
-class SystemError : public Error
+class SystemError : public GeneralError
 {
 public:
   SystemError(const std::string& path, int code = errno) noexcept

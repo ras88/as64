@@ -44,7 +44,7 @@ void list(std::ostream& s, Context& context)
   size_t maxFilenameLength = 0;
   for (const auto& node: context.statements)
   {
-    auto length = node->pos().line()->filename().length();
+    auto length = node->pos().line()->shortFilename().length();
     if (length > maxFilenameLength)
       maxFilenameLength = length;
   }
@@ -58,7 +58,7 @@ void list(std::ostream& s, Context& context)
     do
     {
       snprintf(buf, sizeof(buf), "%s:%05d [+%04x] %04x: %s    %s\n",
-               padRight(line->filename(), maxFilenameLength).c_str(), line->lineNumber(),
+               padRight(line->shortFilename(), maxFilenameLength).c_str(), line->lineNumber(),
                range.start() + offset, node->pc() + offset, bytesToHex(range, offset),
                offset < 3 && line != prevLine ? node->sourceText().c_str() : "");
       s << buf;

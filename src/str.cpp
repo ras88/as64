@@ -1,3 +1,4 @@
+#include <iostream>
 #include <cstring>
 #include <exception>
 #include <algorithm>
@@ -11,7 +12,7 @@ namespace cassm
 //      String Utilities
 // ----------------------------------------------------------------------------
 
-std::string toLowerCase(const std::string& str)
+std::string toLowerCase(const std::string& str) noexcept
 {
   std::string result{str};
   for (auto& c: result)
@@ -19,7 +20,7 @@ std::string toLowerCase(const std::string& str)
   return result;
 }
 
-std::string toUpperCase(const std::string& str)
+std::string toUpperCase(const std::string& str) noexcept
 {
   std::string result{str};
   for (auto& c: result)
@@ -27,7 +28,7 @@ std::string toUpperCase(const std::string& str)
   return result;
 }
 
-int stoi(const std::string& str, int defaultValue)
+int stoi(const std::string& str, int defaultValue) noexcept
 {
   try
   {
@@ -39,7 +40,7 @@ int stoi(const std::string& str, int defaultValue)
   }
 }
 
-std::string trim(const std::string& str)
+std::string trim(const std::string& str) noexcept
 {
   const char *start = str.data(), *end = start + str.length();
 
@@ -52,18 +53,43 @@ std::string trim(const std::string& str)
   return std::string(start, end - start);
 }
 
-std::string padLeft(const std::string& str, size_t width)
+std::string padLeft(const std::string& str, size_t width) noexcept
 {
   if (str.length() >= width)
     return str;
-  return std::string(' ', width - str.length()) + str;
+  return std::string(width - str.length(), ' ') + str;
 }
 
-std::string padRight(const std::string& str, size_t width)
+std::string padRight(const std::string& str, size_t width) noexcept
 {
   if (str.length() >= width)
     return str;
-  return str + std::string(' ', width - str.length());
+  return str + std::string(width - str.length(), ' ');
+}
+
+std::string join(const std::vector<std::string> items, const std::string& separator) noexcept
+{
+  std::string result;
+  for (size_t index = 0; index < items.size(); ++ index)
+  {
+    if (index)
+      result += separator;
+    result += items[index];
+  }
+  return result;
+}
+
+void split(const std::string& str, char separator, std::function<void (std::string str)> fn) noexcept
+{
+  for (auto start = str.begin(); ; )
+  {
+    auto end = std::find(start, str.end(), separator);
+    if (fn)
+      fn(std::string(start, end));
+    if (end == str.end())
+      break;
+    start = end + 1;
+  }
 }
 
 // ----------------------------------------------------------------------------

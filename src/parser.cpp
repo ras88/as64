@@ -1,6 +1,7 @@
 #include <iostream>
 #include <unordered_map>
 #include "str.h"
+#include "path.h"
 #include "error.h"
 #include "parser.h"
 #include "context.h"
@@ -50,6 +51,10 @@ private:
   std::unique_ptr<Statement> handleScr(LineReader& reader, SourcePos pos);
   std::unique_ptr<Statement> handleSeq(LineReader& reader, SourcePos pos);
   std::unique_ptr<Statement> handleObj(LineReader& reader, SourcePos pos);
+  std::unique_ptr<Statement> handleIf(LineReader& reader, SourcePos pos);
+  std::unique_ptr<Statement> handleIfdef(LineReader& reader, SourcePos pos);
+  std::unique_ptr<Statement> handleElse(LineReader& reader, SourcePos pos);
+  std::unique_ptr<Statement> handleEndif(LineReader& reader, SourcePos pos);
   std::unique_ptr<Statement> handleUnsupported(LineReader& reader, SourcePos pos);
   std::unique_ptr<Expression> parseExpression(LineReader& reader, bool optional = false);
   std::unique_ptr<ExprNode> parseOperand(LineReader& reader, bool optional = false);
@@ -344,10 +349,11 @@ std::unique_ptr<Statement> Parser::handleSeq(LineReader& reader, SourcePos pos)
     throwSourceError(token.pos, "Expected a quoted filename");
   try
   {
-    context_.source.includeFile(token.text);
+    auto filename = joinPath(dirname(pos.filename()), token.text);
+    context_.source.includeFile(filename);
     return std::make_unique<EmptyStatement>(pos);
   }
-  catch (SystemError& err)
+  catch (GeneralError& err)
   {
     throwSourceError(token.pos, "%s", err.message().c_str());
   }
@@ -361,6 +367,29 @@ std::unique_ptr<Statement> Parser::handleObj(LineReader& reader, SourcePos pos)
   if (! isSafeFilename(token.text))
     throwSourceError(token.pos, "Unsafe filename");
   return std::make_unique<ObjectFileDirective>(pos, token.text);
+}
+
+std::unique_ptr<Statement> Parser::handleIf(LineReader& reader, SourcePos pos)
+{
+  return std::make_unique<IfDirective>(pos, parseExpression(reader));
+}
+
+std::unique_ptr<Statement> Parser::handleIfdef(LineReader& reader, SourcePos pos)
+{
+  auto token = reader.nextToken();
+  if (token.type != TokenType::Identifier)
+    throwSourceError(token.pos, "Expected a symbol name");
+  return std::make_unique<IfdefDirective>(pos, token.text);
+}
+
+std::unique_ptr<Statement> Parser::handleElse(LineReader& reader, SourcePos pos)
+{
+  return std::make_unique<ElseDirective>(pos);
+}
+
+std::unique_ptr<Statement> Parser::handleEndif(LineReader& reader, SourcePos pos)
+{
+  return std::make_unique<EndifDirective>(pos);
 }
 
 std::unique_ptr<Statement> Parser::handleUnsupported(LineReader& reader, SourcePos pos)
@@ -517,6 +546,10 @@ std::unordered_map<std::string, Parser::DirectiveHandler> Parser::directives_ =
   { "scr",                  &Parser::handleScr },
   { "seq",                  &Parser::handleSeq },
   { "obj",                  &Parser::handleObj },
+  { "if",                   &Parser::handleIf },
+  { "ifdef",                &Parser::handleIfdef },
+  { "else",                 &Parser::handleElse },
+  { "ife",                  &Parser::handleEndif },
   { "dvi",                  &Parser::handleUnsupported },
   { "dvo",                  &Parser::handleUnsupported },
   { "burst",                &Parser::handleUnsupported },

@@ -22,12 +22,6 @@ using Offset = uint16_t;
 #define CHECK_FORMAT(formatIndex, argIndex)
 #endif
 
-#ifdef _WIN32
-#define PATH_SEPARATOR '\\'
-#else
-#define PATH_SEPARATOR '/'
-#endif
-
 // ----------------------------------------------------------------------------
 //      Maybe
 // ----------------------------------------------------------------------------
@@ -51,7 +45,6 @@ public:
   T value() const noexcept { return value_; }
   T value(T defaultValue) const noexcept { return has_ ? value_ : defaultValue; }
   bool hasValue() const noexcept { return has_; }
-  operator bool() const noexcept { return has_; }
 
 private:
   T value_;

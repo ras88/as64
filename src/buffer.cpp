@@ -1,6 +1,8 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include "str.h"
+#include "path.h"
 #include "error.h"
 #include "buffer.h"
 
@@ -52,13 +54,7 @@ void CodeBuffer::write(std::ostream& s, bool withOriginPrefix) const noexcept
 
 void CodeBuffer::save(const std::string& pathPrefix, bool withOriginPrefix) const
 {
-  std::string filename = filename_;
-  if (! pathPrefix.empty())
-  {
-    if (pathPrefix[pathPrefix.length() - 1] != PATH_SEPARATOR)
-      filename = PATH_SEPARATOR + filename;
-    filename = pathPrefix + filename;
-  }
+  std::string filename = joinPath(pathPrefix, filename_);
   std::ofstream s(filename);
   if (! s.is_open())
     throw SystemError(filename);

@@ -343,6 +343,71 @@ void StringDirective::dump(std::ostream& s, int level) const noexcept
 }
 
 // ----------------------------------------------------------------------------
+//      IfDirective
+// ----------------------------------------------------------------------------
+
+void IfDirective::accept(StatementVisitor& visitor)
+{
+  visitor.visit(*this);
+}
+
+void IfDirective::dump(std::ostream& s, int level) const noexcept
+{
+  indent(s, level);
+  prefixLabel(s);
+  s << "If Directive" << std::endl;
+  expr_->dump(s, level + 2);
+}
+
+// ----------------------------------------------------------------------------
+//      IfdefDirective
+// ----------------------------------------------------------------------------
+
+void IfdefDirective::accept(StatementVisitor& visitor)
+{
+  visitor.visit(*this);
+}
+
+void IfdefDirective::dump(std::ostream& s, int level) const noexcept
+{
+  indent(s, level);
+  prefixLabel(s);
+  s << "Ifdef Directive: " << name_;
+}
+
+// ----------------------------------------------------------------------------
+//      ElseDirective
+// ----------------------------------------------------------------------------
+
+void ElseDirective::accept(StatementVisitor& visitor)
+{
+  visitor.visit(*this);
+}
+
+void ElseDirective::dump(std::ostream& s, int level) const noexcept
+{
+  indent(s, level);
+  prefixLabel(s);
+  s << "Else Directive";
+}
+
+// ----------------------------------------------------------------------------
+//      EndifDirective
+// ----------------------------------------------------------------------------
+
+void EndifDirective::accept(StatementVisitor& visitor)
+{
+  visitor.visit(*this);
+}
+
+void EndifDirective::dump(std::ostream& s, int level) const noexcept
+{
+  indent(s, level);
+  prefixLabel(s);
+  s << "Endif Directive";
+}
+
+// ----------------------------------------------------------------------------
 //      StatementList
 // ----------------------------------------------------------------------------
 
@@ -357,8 +422,8 @@ void StatementList::accept(StatementVisitor& visitor) const
   {
     try
     {
-      visitor.before(*statement);
-      statement->accept(visitor);
+      if (visitor.before(*statement))
+        statement->accept(visitor);
       visitor.after(*statement);
     }
     catch (SourceError& err)
@@ -418,7 +483,7 @@ void ExprConstant::dump(std::ostream& s, int level) const noexcept
 std::unique_ptr<ExprNode> ExprSymbol::eval(Context& context, bool throwUndefined)
 {
   auto value = context.symbols.get(name_);
-  if (! value)
+  if (! value.hasValue())
   {
     if (! throwUndefined)
       return nullptr;
@@ -440,7 +505,7 @@ void ExprSymbol::dump(std::ostream& s, int level) const noexcept
 std::unique_ptr<ExprNode> ExprTemporarySymbol::eval(Context& context, bool throwUndefined)
 {
   auto value = context.symbols.get(context.pc, labelDelta_);
-  if (! value)
+  if (! value.hasValue())
   {
     if (! throwUndefined)
       return nullptr;
@@ -484,7 +549,7 @@ std::unique_ptr<ExprNode> ExprOperator::eval(Context& context, bool throwUndefin
     right_ = std::move(right);
 
   auto a = left_->value(), b = right_->value();
-  if (a && b)
+  if (a.hasValue() && b.hasValue())
   {
     Address result;
     switch (op_)

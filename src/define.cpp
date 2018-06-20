@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <algorithm>
 #include "define.h"
 #include "context.h"
 #include "ast.h"
@@ -33,32 +34,54 @@ public:
   void visit(ByteDirective& node) override;
   void visit(WordDirective& node) override;
   void visit(StringDirective& node) override;
+  void visit(IfDirective& node) override;
+  void visit(IfdefDirective& node) override;
+  void visit(ElseDirective& node) override;
+  void visit(EndifDirective& node) override;
 
-  void before(Statement& node) override;
+  bool before(Statement& node) override;
   bool uncaught(SourceError& err) override;
 
 private:
+  struct Conditional
+  {
+    Statement *node;
+    bool value;
+  };
+
   void processLabel(Statement& node);
   void setLabel(Statement& node, Address value);
+  void updateSkipFlag();
   void advance(SourcePos pos, ByteLength count);
 
   Context& context_;
   std::vector<Address> offsetStack_;
+  bool skipping_;
+  std::vector<Conditional> conditionalStack_;
 };
 
 DefinitionPass::DefinitionPass(Context& context)
-  : context_(context)
+  : context_(context), skipping_(false)
 {
 }
 
 void DefinitionPass::run()
 {
   context_.statements.accept(*this);
+
+  for (const auto& cond: conditionalStack_)
+    context_.messages.add(Severity::Error, cond.node->pos(), "Missing corresponding .ife");
 }
 
-void DefinitionPass::before(Statement& node)
+bool DefinitionPass::before(Statement& node)
 {
   node.setPc(context_.pc);
+  if (skipping_ && ! node.isConditional())
+  {
+    node.skip();
+    return false;
+  }
+  return true;
 }
 
 void DefinitionPass::visit(SymbolDefinition& node)
@@ -76,7 +99,7 @@ void DefinitionPass::visit(ImpliedOperation& node)
   processLabel(node);
 
   auto length = node.instruction().encodeImplied(nullptr);
-  if (! length)
+  if (! length.hasValue())
     throwSourceError(node.pos(), "Instruction '%s' does not support implied addressing", node.instruction().name().c_str());
 
   advance(node.pos(), *length);
@@ -87,7 +110,7 @@ void DefinitionPass::visit(ImmediateOperation& node)
   processLabel(node);
 
   auto length = node.instruction().encodeImmediate(nullptr, 0);
-  if (! length)
+  if (! length.hasValue())
     throwSourceError(node.pos(), "Instruction '%s' does not support immediate addressing", node.instruction().name().c_str());
 
   advance(node.pos(), *length);
@@ -98,7 +121,7 @@ void DefinitionPass::visit(AccumulatorOperation& node)
   processLabel(node);
 
   auto length = node.instruction().encodeAccumulator(nullptr);
-  if (! length)
+  if (! length.hasValue())
     throwSourceError(node.pos(), "Instruction '%s' does not support accumulator addressing", node.instruction().name().c_str());
 
   advance(node.pos(), *length);
@@ -113,10 +136,10 @@ void DefinitionPass::visit(DirectOperation& node)
   // If evaluation fails, force absolute mode for all future passes. (Zero-page addressing
   // requires all symbols referenced by the expression to be previously defined.)
   auto addr = node.expr().tryEval(context_);
-  if (! addr)
+  if (! addr.hasValue())
     node.setForceAbsolute(true);
   auto length = node.instruction().encodeDirect(nullptr, addr.value(0), node.index(), node.forceAbsolute());
-  if (! length)
+  if (! length.hasValue())
   {
     if (node.index() != IndexRegister::None)
       throwSourceError(node.pos(), "Instruction '%s' does not support indexed addressing via %s",
@@ -132,7 +155,7 @@ void DefinitionPass::visit(IndirectOperation& node)
   processLabel(node);
 
   auto length = node.instruction().encodeIndirect(nullptr, 0, node.index());
-  if (! length)
+  if (! length.hasValue())
   {
     if (node.index() != IndexRegister::None)
       throwSourceError(node.pos(), "Instruction '%s' does not support indirect addressing via %s",
@@ -148,7 +171,7 @@ void DefinitionPass::visit(BranchOperation& node)
   processLabel(node);
 
   auto length = node.instruction().encodeRelative(nullptr, 0);
-  if (! length)
+  if (! length.hasValue())
     throwSourceError(node.pos(), "Instruction '%s' is not a branch instruction", node.instruction().name().c_str());
 
   advance(node.pos(), *length);
@@ -208,6 +231,34 @@ void DefinitionPass::visit(StringDirective& node)
   advance(node.pos(), node.byteLength());
 }
 
+void DefinitionPass::visit(IfDirective& node)
+{
+  conditionalStack_.push_back({ &node, node.expr().eval(context_) != 0 });
+  updateSkipFlag();
+}
+
+void DefinitionPass::visit(IfdefDirective& node)
+{
+  conditionalStack_.push_back({ &node, context_.symbols.exists(node.name()) });
+  updateSkipFlag();
+}
+
+void DefinitionPass::visit(ElseDirective& node)
+{
+  if (conditionalStack_.empty())
+    throwSourceError(node.pos(), ".else without a corresponding .if or .ifdef");
+  conditionalStack_.back().value = ! conditionalStack_.back().value;
+  updateSkipFlag();
+}
+
+void DefinitionPass::visit(EndifDirective& node)
+{
+  if (conditionalStack_.empty())
+    throwSourceError(node.pos(), ".ife without a corresponding .if or .ifdef");
+  conditionalStack_.pop_back();
+  updateSkipFlag();
+}
+
 bool DefinitionPass::uncaught(SourceError& err)
 {
   context_.messages.add(Severity::Error, err.pos(), err.message(), err.isFatal());
@@ -223,6 +274,12 @@ void DefinitionPass::setLabel(Statement& node, Address value)
 {
   if (! context_.symbols.set(node.label(), value))
     throwSourceError(node.pos(), "Symbol '%s' already exists", node.label().name().c_str());
+}
+
+void DefinitionPass::updateSkipFlag()
+{
+  skipping_ = std::find_if(std::begin(conditionalStack_), std::end(conditionalStack_),
+                           [](const auto& cond) { return cond.value == false; }) != std::end(conditionalStack_);
 }
 
 void DefinitionPass::advance(SourcePos pos, ByteLength count)

@@ -1,9 +1,11 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <algorithm>
 #include <cstdarg>
 #include "error.h"
 #include "source.h"
+#include "path.h"
 
 namespace cassm
 {
@@ -22,6 +24,11 @@ std::string Line::filename() const noexcept
   return stream_.filename(fileIndex_);
 }
 
+std::string Line::shortFilename() const noexcept
+{
+  return stream_.shortFilename(fileIndex_);
+}
+
 bool operator==(const Line& a, const Line& b) noexcept
 {
   return a.fileIndex_ == b.fileIndex_ && a.lineNumber_ == b.lineNumber_;
@@ -38,14 +45,18 @@ bool operator<(const Line& a, const Line& b) noexcept
 
 void SourceStream::includeFile(const std::string& filename)
 {
-  auto input = std::make_unique<std::ifstream>(filename);
+  auto normalizedFilename = normalizePath(filename);
+
+  auto input = std::make_unique<std::ifstream>(normalizedFilename);
   if (! input->is_open())
-    throw SystemError(filename);
+    throw SystemError(normalizedFilename);
 
-  // TODO: detect circular includes
+  if (std::find_if(std::begin(files_), std::end(files_),
+                [=](const auto& info) { return info.filename == normalizedFilename; }) != std::end(files_))
+    throw DuplicateIncludeError(normalizedFilename);
 
-  int fileIndex = filenames_.size();
-  filenames_.push_back(filename);
+  int fileIndex = files_.size();
+  files_.push_back({ normalizedFilename, basename(normalizedFilename) });
   sources_.emplace(fileIndex, std::move(input));
 }
 
@@ -68,7 +79,7 @@ Line *SourceStream::nextLine()
 
     if (source.input->bad())
     {
-      auto filename = filenames_[source.fileIndex];
+      auto filename = files_[source.fileIndex].filename;
       sources_.pop();
       throw SystemError(filename);
     }
@@ -279,7 +290,6 @@ Token LineReader::nextToken()
 
   if (c == '"')
   {
-    // TODO: did PowerAssembler support any escapes?
     while ((c = get()) != '"' && c != -1)
       token.text += c;
     token.type = TokenType::Literal;
@@ -346,6 +356,17 @@ void throwFatalSourceError(SourcePos pos, const char *format, ...)
   char buf[1024];
   vsnprintf(buf, sizeof(buf), format, ap);
   throw SourceError(pos, buf, true);
+}
+
+// ----------------------------------------------------------------------------
+//      DuplicateIncludeError
+// ----------------------------------------------------------------------------
+
+std::string DuplicateIncludeError::message() const noexcept
+{
+  std::stringstream s;
+  s << "File '" << filename_ << "' has already been included";
+  return s.str();
 }
 
 }

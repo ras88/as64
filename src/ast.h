@@ -33,6 +33,9 @@ public:
   SourcePos pos() const noexcept { return pos_; }
   std::string sourceText() const noexcept { return pos_.line() ? pos_.line()->text() : ""; }
 
+  bool isSkipped() const noexcept { return skipped_; }
+  void skip(bool value = true) noexcept { skipped_ = value; }
+
   virtual void dump(std::ostream& s, int level = 0) const noexcept = 0;
 
 protected:
@@ -40,6 +43,7 @@ protected:
 
 private:
   SourcePos pos_;
+  bool skipped_;
 };
 
 // ----------------------------------------------------------------------------
@@ -60,6 +64,7 @@ public:
   CodeRange range() const noexcept { return range_; }
   void setRange(const CodeRange& range) noexcept { range_ = range; }
 
+  virtual bool isConditional() const noexcept { return false; }
   virtual void accept(StatementVisitor& visitor) = 0;
 
 protected:
@@ -411,6 +416,72 @@ private:
 };
 
 // ----------------------------------------------------------------------------
+//      IfDirective
+// ----------------------------------------------------------------------------
+
+class IfDirective : public Directive
+{
+public:
+  IfDirective(SourcePos pos, std::unique_ptr<Expression> expr) noexcept : Directive(pos), expr_(std::move(expr)) { }
+
+  Expression& expr() const noexcept { return *expr_; }
+
+  bool isConditional() const noexcept override { return true; }
+  void accept(StatementVisitor& visitor) override;
+  void dump(std::ostream& s, int level = 0) const noexcept override;
+
+private:
+  std::unique_ptr<Expression> expr_;
+};
+
+// ----------------------------------------------------------------------------
+//      IfdefDirective
+// ----------------------------------------------------------------------------
+
+class IfdefDirective : public Directive
+{
+public:
+  IfdefDirective(SourcePos pos, const std::string& name) noexcept : Directive(pos), name_(name) { }
+
+  std::string name() const noexcept { return name_; }
+
+  bool isConditional() const noexcept override { return true; }
+  void accept(StatementVisitor& visitor) override;
+  void dump(std::ostream& s, int level = 0) const noexcept override;
+
+private:
+  std::string name_;
+};
+
+// ----------------------------------------------------------------------------
+//      ElseDirective
+// ----------------------------------------------------------------------------
+
+class ElseDirective : public Directive
+{
+public:
+  ElseDirective(SourcePos pos) noexcept : Directive(pos) { }
+
+  bool isConditional() const noexcept override { return true; }
+  void accept(StatementVisitor& visitor) override;
+  void dump(std::ostream& s, int level = 0) const noexcept override;
+};
+
+// ----------------------------------------------------------------------------
+//      EndifDirective
+// ----------------------------------------------------------------------------
+
+class EndifDirective : public Directive
+{
+public:
+  EndifDirective(SourcePos pos) noexcept : Directive(pos) { }
+
+  bool isConditional() const noexcept override { return true; }
+  void accept(StatementVisitor& visitor) override;
+  void dump(std::ostream& s, int level = 0) const noexcept override;
+};
+
+// ----------------------------------------------------------------------------
 //      StatementVisitor
 // ----------------------------------------------------------------------------
 
@@ -433,8 +504,12 @@ public:
   virtual void visit(ByteDirective& node) { }
   virtual void visit(WordDirective& node) { }
   virtual void visit(StringDirective& node) { }
+  virtual void visit(IfDirective& node) { }
+  virtual void visit(IfdefDirective& node) { }
+  virtual void visit(ElseDirective& node) { }
+  virtual void visit(EndifDirective& node) { }
 
-  virtual void before(Statement& node) { }
+  virtual bool before(Statement& node) { return true; }         // Return false to skip visitation for this node only
   virtual void after(Statement& node) { }
   virtual bool uncaught(SourceError& err) { return true; }      // Return false to stop visitation or true to continue
 };

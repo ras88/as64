@@ -30,12 +30,12 @@ public:
   void visit(WordDirective& node) override;
   void visit(StringDirective& node) override;
 
-  void before(Statement& node) override;
+  bool before(Statement& node) override;
   void after(Statement& node) override;
   bool uncaught(SourceError& err) override;
 
 private:
-  void invalidInstruction();
+  void invalidInstruction(SourcePos pos);
   void newBuffer();
 
   Context& context_;
@@ -54,12 +54,13 @@ void CodeGenerationPass::run()
   context_.statements.accept(*this);
 }
 
-void CodeGenerationPass::before(Statement& node)
+bool CodeGenerationPass::before(Statement& node)
 {
   context_.pc = node.pc();
   start_ = writer_.offset();
   if (writer_.buffer()->isEmpty())
     writer_.buffer()->setOrigin(node.pc());
+  return ! node.isSkipped();
 }
 
 void CodeGenerationPass::after(Statement& node)
@@ -77,43 +78,43 @@ void CodeGenerationPass::visit(ProgramCounterAssignment& node)
 
 void CodeGenerationPass::visit(ImpliedOperation& node)
 {
-  if (! node.instruction().encodeImplied(&writer_))
-    invalidInstruction();
+  if (! node.instruction().encodeImplied(&writer_).hasValue())
+    invalidInstruction(node.pos());
 }
 
 void CodeGenerationPass::visit(ImmediateOperation& node)
 {
   auto value = select(node.selector(), node.expr().eval(context_));
-  if (! value)
+  if (! value.hasValue())
     throwSourceError(node.pos(), "Expected a value between 0 and 255; got %d", node.expr().eval(context_));
-  if (! node.instruction().encodeImmediate(&writer_, *value))
-    invalidInstruction();
+  if (! node.instruction().encodeImmediate(&writer_, *value).hasValue())
+    invalidInstruction(node.pos());
 }
 
 void CodeGenerationPass::visit(AccumulatorOperation& node)
 {
-  if (! node.instruction().encodeAccumulator(&writer_))
-    invalidInstruction();
+  if (! node.instruction().encodeAccumulator(&writer_).hasValue())
+    invalidInstruction(node.pos());
 }
 
 void CodeGenerationPass::visit(DirectOperation& node)
 {
   auto addr = node.expr().eval(context_);
-  if (! node.instruction().encodeDirect(&writer_, addr, node.index(), node.forceAbsolute()))
-    invalidInstruction();
+  if (! node.instruction().encodeDirect(&writer_, addr, node.index(), node.forceAbsolute()).hasValue())
+    invalidInstruction(node.pos());
 }
 
 void CodeGenerationPass::visit(IndirectOperation& node)
 {
   auto addr = node.expr().eval(context_);
-  if ( ! node.instruction().encodeIndirect(&writer_, addr, node.index()))
-    invalidInstruction();
+  if ( ! node.instruction().encodeIndirect(&writer_, addr, node.index()).hasValue())
+    invalidInstruction(node.pos());
 }
 
 void CodeGenerationPass::visit(BranchOperation& node)
 {
   auto addr = node.expr().eval(context_);
-  if (! node.instruction().encodeRelative(&writer_, context_.pc, addr))
+  if (! node.instruction().encodeRelative(&writer_, context_.pc, addr).hasValue())
     throwSourceError(node.pos(), "Branch out of range");
 }
 
@@ -135,7 +136,7 @@ void CodeGenerationPass::visit(ByteDirective& node)
   for (const auto& expr: node)
   {
     auto value = select(node.selector(), expr->eval(context_));
-    if (! value)
+    if (! value.hasValue())
       throwSourceError(expr->pos(), "Expected a value between 0 and 255; got %d", expr->eval(context_));
     writer_.byte(*value);
   }
@@ -160,11 +161,9 @@ bool CodeGenerationPass::uncaught(SourceError& err)
   return ! err.isFatal();
 }
 
-void CodeGenerationPass::invalidInstruction()
+void CodeGenerationPass::invalidInstruction(SourcePos pos)
 {
-  // TODO: terminate due to internal error
-  std::cerr << "Invalid instruction" << std::endl;
-  std::terminate();
+  throwSourceError(pos, "INTERNAL ERROR! Failed to encode instruction");
 }
 
 void CodeGenerationPass::newBuffer()
