@@ -436,7 +436,7 @@ public:
 
   virtual void before(Statement& node) { }
   virtual void after(Statement& node) { }
-  virtual bool uncaught(SourceError& err) { }         // Return false to stop visitation or true to continue
+  virtual bool uncaught(SourceError& err) { return true; }      // Return false to stop visitation or true to continue
 };
 
 // ----------------------------------------------------------------------------

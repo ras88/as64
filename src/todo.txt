@@ -1,2 +1,4 @@
 * Conditionals
 * Macros?
+
+* .seq should load files relative to the current file's path

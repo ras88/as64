@@ -1,5 +1,5 @@
-#ifndef _INCLUDED_CASSM_STR
-#define _INCLUDED_CASSM_STR
+#ifndef _INCLUDED_CASSM_STR_H
+#define _INCLUDED_CASSM_STR_H
 
 #include <string>
 #include "types.h"

@@ -13,6 +13,7 @@ add_executable(cassm
 	define.cpp
 	emit.cpp
 	lister.cpp
+	cmdline.cpp
 	main.cpp
 )
 

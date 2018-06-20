@@ -5,46 +5,37 @@
 #include "emit.h"
 #include "lister.h"
 #include "context.h"
+#include "cmdline.h"
 
 using namespace cassm;
 
-static void showHelp()
+static void usage()
 {
   std::cout << "cassm [options] <file> ..." << std::endl;
   std::cout << "  -l              Write listing to standard output" << std::endl;
   std::cout << "  -o <file>       Specify output filename" << std::endl;
+  std::cout << "  -O <path>       Specify output directory" << std::endl;
+  std::cout << "  -r              Suppress load location from output file header" << std::endl;
+  std::cout << "  -h              Show help text" << std::endl;
   std::cout << std::endl;
 }
 
 int main(int argc, char **argv)
 {
-  std::vector<std::string> inputFilenames;
-  bool listingToStdout = false;
-  std::string listingFilename, outputFilename;
-  for (int index = 1; index < argc; ++ index)
+  bool listingToStdout = false, suppressLoadLocation = false, showHelpText = false;
+  std::string outputFilename, outputPath;
+  auto inputFilenames = parseCommandLine(argc, argv,
   {
-    const char *p = argv[index];
-    if (*p == '-')
-    {
-      ++ p;
-      switch (*p)
-      {
-        case 'l':
-          listingToStdout = true;
-          break;
+    { 'l',    false,      [&](const auto& value) { listingToStdout = true; } },
+    { 'o',    true,       [&](const auto& value) { outputFilename = value; } },
+    { 'O',    true,       [&](const auto& value) { outputPath = value; } },
+    { 'r',    false,      [&](const auto& value) { suppressLoadLocation = true; } },
+    { 'h',    false,      [&](const auto& value) { showHelpText = true; } }
+  });
 
-        case 'o':
-          // TODO
-          break;
-      }
-    }
-    else
-      inputFilenames.push_back(p);
-  }
-
-  if (inputFilenames.empty())
+  if (showHelpText || inputFilenames.empty())
   {
-    showHelp();
+    usage();
     return 0;
   }
 
@@ -64,8 +55,10 @@ int main(int argc, char **argv)
     {
       for (const auto& buffer: context.buffers)
       {
+        if (buffer->filename().empty())
+          buffer->setFilename(outputFilename);
         if (! buffer->filename().empty())
-          buffer->save();
+          buffer->save(outputPath, ! suppressLoadLocation);
       }
       if (listingToStdout)
         list(std::cout, context);
