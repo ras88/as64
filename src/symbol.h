@@ -4,6 +4,7 @@
 #include <vector>
 #include <unordered_map>
 #include <utility>
+#include <ostream>
 #include "types.h"
 
 namespace cassm
@@ -16,6 +17,8 @@ namespace cassm
 class SymbolTable
 {
 public:
+  SymbolTable();
+
   // Returns false if a symbol already exists with the given label.
   bool set(const Label& label, Address addr) noexcept;
   bool set(const std::pair<Label, Address>& symbol) noexcept { set(symbol.first, symbol.second); }
@@ -24,15 +27,24 @@ public:
   Maybe<Address> get(const std::string& name) const noexcept;
   Maybe<Address> get(Address addr, int labelDelta) const noexcept;
 
+  void write(std::ostream& s) const noexcept;
+
 private:
+  struct Symbol
+  {
+    Address address;
+    int serialNum;
+  };
+
   struct Temporary
   {
     LabelType type;
     Address addr;
   };
 
-  std::unordered_map<std::string, Address> symbols_;
+  std::unordered_map<std::string, Symbol> symbols_;
   std::vector<Temporary> temps_;
+  int nextSerialNum_;
 };
 
 }

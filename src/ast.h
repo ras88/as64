@@ -482,6 +482,20 @@ public:
 };
 
 // ----------------------------------------------------------------------------
+//      EndDirective
+// ----------------------------------------------------------------------------
+
+class EndDirective : public Directive
+{
+public:
+  EndDirective(SourcePos pos) noexcept : Directive(pos) { }
+
+  bool isConditional() const noexcept override { return true; }
+  void accept(StatementVisitor& visitor) override;
+  void dump(std::ostream& s, int level = 0) const noexcept override;
+};
+
+// ----------------------------------------------------------------------------
 //      StatementVisitor
 // ----------------------------------------------------------------------------
 
@@ -508,6 +522,7 @@ public:
   virtual void visit(IfdefDirective& node) { }
   virtual void visit(ElseDirective& node) { }
   virtual void visit(EndifDirective& node) { }
+  virtual void visit(EndDirective& node) { }
 
   virtual bool before(Statement& node) { return true; }         // Return false to skip visitation for this node only
   virtual void after(Statement& node) { }

@@ -1,3 +1,17 @@
+// Copyright (c) 2018 Robert A. Stoerrle
+//
+// Permission to use, copy, modify, and/or distribute this software for any
+// purpose with or without fee is hereby granted, provided that the above
+// copyright notice and this permission notice appear in all copies.
+//
+// THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+// REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+// AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+// INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+// LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+// OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+// PERFORMANCE OF THIS SOFTWARE.
+
 #include <iostream>
 #include <vector>
 #include <algorithm>
@@ -38,6 +52,7 @@ public:
   void visit(IfdefDirective& node) override;
   void visit(ElseDirective& node) override;
   void visit(EndifDirective& node) override;
+  void visit(EndDirective& node) override;
 
   bool before(Statement& node) override;
   bool uncaught(SourceError& err) override;
@@ -57,11 +72,12 @@ private:
   Context& context_;
   std::vector<Address> offsetStack_;
   bool skipping_;
+  bool ended_;
   std::vector<Conditional> conditionalStack_;
 };
 
 DefinitionPass::DefinitionPass(Context& context)
-  : context_(context), skipping_(false)
+  : context_(context), skipping_(false), ended_(false)
 {
 }
 
@@ -76,7 +92,7 @@ void DefinitionPass::run()
 bool DefinitionPass::before(Statement& node)
 {
   node.setPc(context_.pc);
-  if (skipping_ && ! node.isConditional())
+  if (ended_ || (skipping_ && ! node.isConditional()))
   {
     node.skip();
     return false;
@@ -257,6 +273,11 @@ void DefinitionPass::visit(EndifDirective& node)
     throwSourceError(node.pos(), ".ife without a corresponding .if or .ifdef");
   conditionalStack_.pop_back();
   updateSkipFlag();
+}
+
+void DefinitionPass::visit(EndDirective& node)
+{
+  ended_ = true;
 }
 
 bool DefinitionPass::uncaught(SourceError& err)

@@ -1,3 +1,17 @@
+// Copyright (c) 2018 Robert A. Stoerrle
+//
+// Permission to use, copy, modify, and/or distribute this software for any
+// purpose with or without fee is hereby granted, provided that the above
+// copyright notice and this permission notice appear in all copies.
+//
+// THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+// REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+// AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+// INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+// LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+// OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+// PERFORMANCE OF THIS SOFTWARE.
+
 #include <iostream>
 #include <unordered_map>
 #include "str.h"
@@ -55,6 +69,7 @@ private:
   std::unique_ptr<Statement> handleIfdef(LineReader& reader, SourcePos pos);
   std::unique_ptr<Statement> handleElse(LineReader& reader, SourcePos pos);
   std::unique_ptr<Statement> handleEndif(LineReader& reader, SourcePos pos);
+  std::unique_ptr<Statement> handleEnd(LineReader& reader, SourcePos pos);
   std::unique_ptr<Statement> handleUnsupported(LineReader& reader, SourcePos pos);
   std::unique_ptr<Expression> parseExpression(LineReader& reader, bool optional = false);
   std::unique_ptr<ExprNode> parseOperand(LineReader& reader, bool optional = false);
@@ -392,6 +407,11 @@ std::unique_ptr<Statement> Parser::handleEndif(LineReader& reader, SourcePos pos
   return std::make_unique<EndifDirective>(pos);
 }
 
+std::unique_ptr<Statement> Parser::handleEnd(LineReader& reader, SourcePos pos)
+{
+  return std::make_unique<EndDirective>(pos);
+}
+
 std::unique_ptr<Statement> Parser::handleUnsupported(LineReader& reader, SourcePos pos)
 {
   Token token;
@@ -550,6 +570,7 @@ std::unordered_map<std::string, Parser::DirectiveHandler> Parser::directives_ =
   { "ifdef",                &Parser::handleIfdef },
   { "else",                 &Parser::handleElse },
   { "ife",                  &Parser::handleEndif },
+  { "end",                  &Parser::handleEnd },
   { "dvi",                  &Parser::handleUnsupported },
   { "dvo",                  &Parser::handleUnsupported },
   { "burst",                &Parser::handleUnsupported },
