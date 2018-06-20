@@ -7,7 +7,7 @@
 #include <ostream>
 #include "types.h"
 
-namespace cassm
+namespace as64
 {
 
 // ----------------------------------------------------------------------------
@@ -21,7 +21,7 @@ public:
 
   // Returns false if a symbol already exists with the given label.
   bool set(const Label& label, Address addr) noexcept;
-  bool set(const std::pair<Label, Address>& symbol) noexcept { set(symbol.first, symbol.second); }
+  bool set(const std::pair<Label, Address>& symbol) noexcept { return set(symbol.first, symbol.second); }
 
   bool exists(const std::string& name) const noexcept { return symbols_.find(name) != std::end(symbols_); }
   Maybe<Address> get(const std::string& name) const noexcept;

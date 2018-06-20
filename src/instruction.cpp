@@ -21,7 +21,7 @@
 #include "table.h"
 #include "instruction.h"
 
-namespace cassm
+namespace as64
 {
 
 // ----------------------------------------------------------------------------

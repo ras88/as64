@@ -20,7 +20,7 @@
 #include "parser.h"
 #include "context.h"
 
-namespace cassm
+namespace as64
 {
 
 static bool isSafeFilename(const std::string& filename) noexcept

@@ -20,7 +20,7 @@
 #include "error.h"
 #include "buffer.h"
 
-namespace cassm
+namespace as64
 {
 
 // ----------------------------------------------------------------------------

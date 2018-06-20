@@ -17,7 +17,7 @@
 #include <cstring>
 #include "error.h"
 
-namespace cassm
+namespace as64
 {
 
 // ----------------------------------------------------------------------------

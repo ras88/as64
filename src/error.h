@@ -4,7 +4,7 @@
 #include <exception>
 #include <string>
 
-namespace cassm
+namespace as64
 {
 
 // ----------------------------------------------------------------------------

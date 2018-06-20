@@ -1,4 +1,4 @@
-add_executable(cassm
+add_executable(as64
 	types.cpp
 	str.cpp
 	path.cpp
@@ -18,4 +18,4 @@ add_executable(cassm
 	main.cpp
 )
 
-install (TARGETS cassm DESTINATION bin)
+install (TARGETS as64 DESTINATION bin)

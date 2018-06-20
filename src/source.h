@@ -9,7 +9,7 @@
 #include "types.h"
 #include "error.h"
 
-namespace cassm
+namespace as64
 {
 
 class SourceStream;

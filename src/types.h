@@ -5,7 +5,7 @@
 #include <ostream>
 #include <cstdint>
 
-namespace cassm
+namespace as64
 {
 
 using Address = uint16_t;

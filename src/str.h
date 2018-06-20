@@ -6,7 +6,7 @@
 #include <functional>
 #include "types.h"
 
-namespace cassm
+namespace as64
 {
 
 // ----------------------------------------------------------------------------

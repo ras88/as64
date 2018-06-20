@@ -19,7 +19,7 @@
 #include "str.h"
 #include "enum.h"
 
-namespace cassm
+namespace as64
 {
 
 // ----------------------------------------------------------------------------

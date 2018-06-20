@@ -9,7 +9,7 @@
 #include "symbol.h"
 #include "buffer.h"
 
-namespace cassm
+namespace as64
 {
 
 // ----------------------------------------------------------------------------

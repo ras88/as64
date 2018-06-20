@@ -17,7 +17,7 @@
 #include "context.h"
 #include "ast.h"
 
-namespace cassm
+namespace as64
 {
 
 // ----------------------------------------------------------------------------

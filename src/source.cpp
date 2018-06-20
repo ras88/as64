@@ -21,7 +21,7 @@
 #include "source.h"
 #include "path.h"
 
-namespace cassm
+namespace as64
 {
 
 // ----------------------------------------------------------------------------

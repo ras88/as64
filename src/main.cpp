@@ -21,13 +21,13 @@
 #include "context.h"
 #include "cmdline.h"
 
-using namespace cassm;
+using namespace as64;
 
 constexpr const char *g_version = "v1.0.0";
 
 static void usage()
 {
-  std::cout << "cassm [options] <file> ..." << std::endl;
+  std::cout << "as64 [options] <file> ..." << std::endl;
   std::cout << "  -l                  Write listing to standard output" << std::endl;
   std::cout << "  -o <file>           Specify output filename" << std::endl;
   std::cout << "  -O <path>           Specify output directory" << std::endl;

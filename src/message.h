@@ -7,7 +7,7 @@
 #include "types.h"
 #include "source.h"
 
-namespace cassm
+namespace as64
 {
 
 // ----------------------------------------------------------------------------

@@ -3,7 +3,7 @@
 
 #include <ostream>
 
-namespace cassm
+namespace as64
 {
 
 class Context;

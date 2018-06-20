@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <functional>
 
-namespace cassm
+namespace as64
 {
 
 // ----------------------------------------------------------------------------

@@ -18,7 +18,7 @@
 #include "str.h"
 #include "symbol.h"
 
-namespace cassm
+namespace as64
 {
 
 // ----------------------------------------------------------------------------

@@ -6,7 +6,7 @@
 #include <cassert>
 #include "types.h"
 
-namespace cassm
+namespace as64
 {
 
 // ----------------------------------------------------------------------------

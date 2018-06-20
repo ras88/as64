@@ -18,7 +18,7 @@
 #include "lister.h"
 #include "context.h"
 
-namespace cassm
+namespace as64
 {
 
 // ----------------------------------------------------------------------------

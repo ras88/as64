@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <initializer_list>
 
-namespace cassm
+namespace as64
 {
 
 // ----------------------------------------------------------------------------

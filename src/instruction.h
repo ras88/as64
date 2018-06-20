@@ -5,7 +5,7 @@
 #include <array>
 #include <cstdint>
 
-namespace cassm
+namespace as64
 {
 
 class CodeWriter;

@@ -4,7 +4,7 @@
 #include <string>
 #include "str.h"
 
-namespace cassm
+namespace as64
 {
 
 #ifdef _WIN32

@@ -16,7 +16,7 @@
 #include "types.h"
 #include "enum.h"
 
-namespace cassm
+namespace as64
 {
 
 // ----------------------------------------------------------------------------

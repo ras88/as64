@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace cassm
+namespace as64
 {
 
 class Context;

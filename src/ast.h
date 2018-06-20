@@ -11,7 +11,7 @@
 #include "buffer.h"
 #include "instruction.h"
 
-namespace cassm
+namespace as64
 {
 
 class Node;

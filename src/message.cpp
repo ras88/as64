@@ -16,7 +16,7 @@
 #include <cstdarg>
 #include "message.h"
 
-namespace cassm
+namespace as64
 {
 
 // ----------------------------------------------------------------------------
