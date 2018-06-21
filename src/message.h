@@ -1,5 +1,5 @@
-#ifndef _INCLUDED_CASSM_MESSAGE_H
-#define _INCLUDED_CASSM_MESSAGE_H
+#ifndef _INCLUDED_AS64_MESSAGE_H
+#define _INCLUDED_AS64_MESSAGE_H
 
 #include <string>
 #include <ostream>
@@ -17,7 +17,8 @@ namespace as64
 enum class Severity
 {
   Warning,
-  Error
+  Error,
+  FatalError
 };
 
 // ----------------------------------------------------------------------------
@@ -48,7 +49,7 @@ public:
   int warningCount() const noexcept { return warningCount_; }
   bool hasFatalError() const noexcept { return fatal_; }
 
-  void add(Severity severity, SourcePos pos, const std::string& summary, bool fatal = false) noexcept;
+  void add(Severity severity, SourcePos pos, const std::string& summary) noexcept;
   void error(SourcePos pos, const char *format, ...) noexcept CHECK_FORMAT(3, 4);
   void warning(SourcePos pos, const char *format, ...) noexcept CHECK_FORMAT(3, 4);
 

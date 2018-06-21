@@ -1,5 +1,5 @@
-#ifndef _INCLUDED_CASSM_ERROR_H
-#define _INCLUDED_CASSM_ERROR_H
+#ifndef _INCLUDED_AS64_ERROR_H
+#define _INCLUDED_AS64_ERROR_H
 
 #include <exception>
 #include <string>

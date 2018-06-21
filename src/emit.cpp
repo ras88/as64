@@ -171,7 +171,7 @@ void CodeGenerationPass::visit(StringDirective& node)
 
 bool CodeGenerationPass::uncaught(SourceError& err)
 {
-  context_.messages.add(Severity::Error, err.pos(), err.message(), err.isFatal());
+  context_.messages.add(err.isFatal() ? Severity::FatalError : Severity::Error, err.pos(), err.message());
   return ! err.isFatal();
 }
 

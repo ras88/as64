@@ -1,5 +1,5 @@
-#ifndef _INCLUDED_CASSM_PARSER_H
-#define _INCLUDED_CASSM_PARSER_H
+#ifndef _INCLUDED_AS64_PARSER_H
+#define _INCLUDED_AS64_PARSER_H
 
 #include <string>
 #include <vector>

@@ -31,7 +31,7 @@ bool operator<(const Message& a, const Message& b) noexcept
 std::ostream& operator<<(std::ostream& s, const Message& obj) noexcept
 {
   s << obj.pos << ": ";
-  s << (obj.severity == Severity::Error ? "error: " : "warning: ");
+  s << (obj.severity == Severity::Error || obj.severity == Severity::FatalError ? "error: " : "warning: ");
   s << obj.summary;
   if (obj.pos.isValid())
   {
@@ -51,16 +51,16 @@ MessageList::MessageList() noexcept
 {
 }
 
-void MessageList::add(Severity severity, SourcePos pos, const std::string& summary, bool fatal) noexcept
+void MessageList::add(Severity severity, SourcePos pos, const std::string& summary) noexcept
 {
   Message message{ severity, pos, summary };
   auto i = std::lower_bound(std::begin(messages_), std::end(messages_), message);
   messages_.insert(i, message);
-  if (severity == Severity::Error)
+  if (severity == Severity::Error || severity == Severity::FatalError)
     ++ errorCount_;
   else
     ++ warningCount_;
-  if (fatal)
+  if (severity == Severity::FatalError)
     fatal_ = true;
 }
 

@@ -1,5 +1,5 @@
-#ifndef _INCLUDED_CASSM_AST_H
-#define _INCLUDED_CASSM_AST_H
+#ifndef _INCLUDED_AS64_AST_H
+#define _INCLUDED_AS64_AST_H
 
 #include <string>
 #include <memory>
@@ -33,9 +33,6 @@ public:
   SourcePos pos() const noexcept { return pos_; }
   std::string sourceText() const noexcept { return pos_.line() ? pos_.line()->text() : ""; }
 
-  bool isSkipped() const noexcept { return skipped_; }
-  void skip(bool value = true) noexcept { skipped_ = value; }
-
   virtual void dump(std::ostream& s, int level = 0) const noexcept = 0;
 
 protected:
@@ -43,7 +40,6 @@ protected:
 
 private:
   SourcePos pos_;
-  bool skipped_;
 };
 
 // ----------------------------------------------------------------------------
@@ -64,6 +60,9 @@ public:
   CodeRange range() const noexcept { return range_; }
   void setRange(const CodeRange& range) noexcept { range_ = range; }
 
+  bool isSkipped() const noexcept { return skipped_; }
+  void skip(bool value = true) noexcept { skipped_ = value; }
+
   virtual bool isConditional() const noexcept { return false; }
   virtual void accept(StatementVisitor& visitor) = 0;
 
@@ -74,6 +73,7 @@ private:
   Label label_;
   Address pc_;
   CodeRange range_;
+  bool skipped_;
 };
 
 // ----------------------------------------------------------------------------

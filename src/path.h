@@ -1,5 +1,5 @@
-#ifndef _INCLUDED_CASSM_PATH_H
-#define _INCLUDED_CASSM_PATH_H
+#ifndef _INCLUDED_AS64_PATH_H
+#define _INCLUDED_AS64_PATH_H
 
 #include <string>
 #include "str.h"

@@ -76,7 +76,7 @@ std::string normalizePath(const std::string& path) noexcept
   if (parts.empty())
     return ".";
   if (parts.size() == 1 && parts.front() == "")
-    return "/";
+    return PATH_SEPARATOR_STRING;
   return join(parts, PATH_SEPARATOR_STRING);
 }
 

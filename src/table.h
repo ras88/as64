@@ -1,5 +1,5 @@
-#ifndef _INCLUDED_CASSM_TABLE_H
-#define _INCLUDED_CASSM_TABLE_H
+#ifndef _INCLUDED_AS64_TABLE_H
+#define _INCLUDED_AS64_TABLE_H
 
 #include <string>
 #include <unordered_map>

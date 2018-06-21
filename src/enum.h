@@ -1,5 +1,5 @@
-#ifndef _INCLUDED_CASSM_ENUM_H
-#define _INCLUDED_CASSM_ENUM_H
+#ifndef _INCLUDED_AS64_ENUM_H
+#define _INCLUDED_AS64_ENUM_H
 
 #include <string>
 #include <map>

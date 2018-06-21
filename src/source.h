@@ -1,5 +1,5 @@
-#ifndef _INCLUDED_CASSM_SOURCE_H
-#define _INCLUDED_CASSM_SOURCE_H
+#ifndef _INCLUDED_AS64_SOURCE_H
+#define _INCLUDED_AS64_SOURCE_H
 
 #include <string>
 #include <memory>

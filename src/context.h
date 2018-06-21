@@ -1,5 +1,5 @@
-#ifndef _INCLUDED_CASSM_CONTEXT_H
-#define _INCLUDED_CASSM_CONTEXT_H
+#ifndef _INCLUDED_AS64_CONTEXT_H
+#define _INCLUDED_AS64_CONTEXT_H
 
 #include <memory>
 #include <vector>

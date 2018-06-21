@@ -1,5 +1,5 @@
-#ifndef _INCLUDED_CASSM_EMIT_H
-#define _INCLUDED_CASSM_EMIT_H
+#ifndef _INCLUDED_AS64_EMIT_H
+#define _INCLUDED_AS64_EMIT_H
 
 namespace as64
 {

@@ -1,5 +1,5 @@
-#ifndef _INCLUDED_CASSM_SYMBOL_H
-#define _INCLUDED_CASSM_SYMBOL_H
+#ifndef _INCLUDED_AS64_SYMBOL_H
+#define _INCLUDED_AS64_SYMBOL_H
 
 #include <vector>
 #include <unordered_map>

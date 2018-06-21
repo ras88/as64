@@ -1,5 +1,5 @@
-#ifndef _INCLUDED_CASSM_INSTRUCTION_H
-#define _INCLUDED_CASSM_INSTRUCTION_H
+#ifndef _INCLUDED_AS64_INSTRUCTION_H
+#define _INCLUDED_AS64_INSTRUCTION_H
 
 #include <string>
 #include <array>
