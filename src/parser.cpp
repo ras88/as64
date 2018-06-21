@@ -234,8 +234,9 @@ std::unique_ptr<Operation> Parser::handleInstruction(LineReader& reader, Instruc
         throwSourceError(token.pos, "Unexpected character ('%c')", token.punctuator);
     }
   }
+  bool immediate = token.type == TokenType::Literal;
   reader.unget(token);
-  return handleDirect(reader, ins, insPos, false);
+  return immediate? handleImmediate(reader, ins, insPos) : handleDirect(reader, ins, insPos, false);
 }
 
 std::unique_ptr<Operation> Parser::handleImmediate(LineReader& reader, Instruction& ins, SourcePos insPos)
