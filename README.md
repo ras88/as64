@@ -16,3 +16,19 @@ as64 is written in C++14 and has no dependencies other than the C and C++
 standard libraries. I've tested it on Ubuntu 18.04 LTS using gcc and on
 the Mac using clang. It should also work on Windows, although it has not
 been tested there.
+
+Building
+--------
+
+Build files for cmake are provided. Best practice is to build outside of
+the source tree:
+
+    cd as64
+    mkdir out
+    cd out
+    cmake ..
+    make
+
+If you don't have cmake (or don't want to use cmake), you can also throw
+all of the .cpp and .h files from /src into your favorite IDE and hit
+build; there are no particular compiler or linker settings needed.
