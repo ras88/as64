@@ -43,6 +43,7 @@ public:
   void visit(ByteDirective& node) override;
   void visit(WordDirective& node) override;
   void visit(StringDirective& node) override;
+  void visit(BitmapDirective& node) override;
 
   bool before(Statement& node) override;
   void after(Statement& node) override;
@@ -166,6 +167,12 @@ void CodeGenerationPass::visit(StringDirective& node)
 {
   auto str = encode(node.encoding(), node.str());
   for (const auto& c: str)
+    writer_.byte(c);
+}
+
+void CodeGenerationPass::visit(BitmapDirective& node)
+{
+  for (const auto& c: node)
     writer_.byte(c);
 }
 

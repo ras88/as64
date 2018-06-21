@@ -48,6 +48,7 @@ public:
   void visit(ByteDirective& node) override;
   void visit(WordDirective& node) override;
   void visit(StringDirective& node) override;
+  void visit(BitmapDirective& node) override;
   void visit(IfDirective& node) override;
   void visit(IfdefDirective& node) override;
   void visit(ElseDirective& node) override;
@@ -241,6 +242,13 @@ void DefinitionPass::visit(WordDirective& node)
 }
 
 void DefinitionPass::visit(StringDirective& node)
+{
+  processLabel(node);
+
+  advance(node.pos(), node.byteLength());
+}
+
+void DefinitionPass::visit(BitmapDirective& node)
 {
   processLabel(node);
 

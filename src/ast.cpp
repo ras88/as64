@@ -357,6 +357,22 @@ void StringDirective::dump(std::ostream& s, int level) const noexcept
 }
 
 // ----------------------------------------------------------------------------
+//      BitmapDirective
+// ----------------------------------------------------------------------------
+
+void BitmapDirective::accept(StatementVisitor& visitor)
+{
+  visitor.visit(*this);
+}
+
+void BitmapDirective::dump(std::ostream& s, int level) const noexcept
+{
+  indent(s, level);
+  prefixLabel(s);
+  s << "Bitmap: " << args_.size() << " byte(s)";
+}
+
+// ----------------------------------------------------------------------------
 //      IfDirective
 // ----------------------------------------------------------------------------
 

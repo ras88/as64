@@ -416,6 +416,27 @@ private:
 };
 
 // ----------------------------------------------------------------------------
+//      BitmapDirective
+// ----------------------------------------------------------------------------
+
+class BitmapDirective : public Directive
+{
+public:
+  BitmapDirective(SourcePos pos, std::vector<Byte> args) noexcept
+    : Directive(pos), args_(std::move(args)) { }
+
+  ByteLength byteLength() const noexcept { return args_.size(); }
+  const auto begin() const { return args_.begin(); }
+  const auto end() const { return args_.end(); }
+
+  void accept(StatementVisitor& visitor) override;
+  void dump(std::ostream& s, int level = 0) const noexcept override;
+
+private:
+  std::vector<Byte> args_;
+};
+
+// ----------------------------------------------------------------------------
 //      IfDirective
 // ----------------------------------------------------------------------------
 
@@ -518,6 +539,7 @@ public:
   virtual void visit(ByteDirective& node) { }
   virtual void visit(WordDirective& node) { }
   virtual void visit(StringDirective& node) { }
+  virtual void visit(BitmapDirective& node) { }
   virtual void visit(IfDirective& node) { }
   virtual void visit(IfdefDirective& node) { }
   virtual void visit(ElseDirective& node) { }

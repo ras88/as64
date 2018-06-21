@@ -63,6 +63,7 @@ private:
   std::unique_ptr<Statement> handleWord(LineReader& reader, SourcePos pos);
   std::unique_ptr<Statement> handleAsc(LineReader& reader, SourcePos pos);
   std::unique_ptr<Statement> handleScr(LineReader& reader, SourcePos pos);
+  std::unique_ptr<Statement> handleBitmap(LineReader& reader, SourcePos pos);
   std::unique_ptr<Statement> handleSeq(LineReader& reader, SourcePos pos);
   std::unique_ptr<Statement> handleObj(LineReader& reader, SourcePos pos);
   std::unique_ptr<Statement> handleIf(LineReader& reader, SourcePos pos);
@@ -357,6 +358,29 @@ std::unique_ptr<Statement> Parser::handleScr(LineReader& reader, SourcePos pos)
   return std::make_unique<StringDirective>(pos, StringEncoding::Screen, token.text);
 }
 
+std::unique_ptr<Statement> Parser::handleBitmap(LineReader& reader, SourcePos pos)
+{
+  auto token = reader.nextToken();
+  if (token.type != TokenType::Literal)
+    throwSourceError(token.pos, "Expected a quoted string");
+  if ((token.text.length() & 7) != 0)
+    throwSourceError(token.pos, "The bitmap string must contain an even multiple of 8 characters");
+  std::vector<Byte> values;
+  Byte value = 0, mask = 0x80;
+  for (const auto& c: token.text)
+  {
+    value |= (c == '*' ? mask : 0);
+    mask >>= 1;
+    if (mask == 0)
+    {
+      values.push_back(value);
+      value = 0;
+      mask = 0x80;
+    }
+  }
+  return std::make_unique<BitmapDirective>(pos, std::move(values));
+}
+
 std::unique_ptr<Statement> Parser::handleSeq(LineReader& reader, SourcePos pos)
 {
   auto token = reader.nextToken();
@@ -564,6 +588,7 @@ std::unordered_map<std::string, Parser::DirectiveHandler> Parser::directives_ =
   { "word",                 &Parser::handleWord },
   { "asc",                  &Parser::handleAsc },
   { "scr",                  &Parser::handleScr },
+  { "bitmap",               &Parser::handleBitmap },
   { "seq",                  &Parser::handleSeq },
   { "obj",                  &Parser::handleObj },
   { "if",                   &Parser::handleIf },
