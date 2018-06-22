@@ -100,14 +100,16 @@ Maybe<Address> SymbolTable::get(Address addr, int labelDelta) const noexcept
   }
 
   // The delta is negative, so we're going backward here.
-  while (labelDelta && i > std::begin(temps_))
+  while (i >= std::begin(temps_))
   {
-    -- i;
-    if (i->type == LabelType::Temporary || i->type == LabelType::TemporaryBackward)
+    if (i->addr <= addr && (i->type == LabelType::Temporary || i->type == LabelType::TemporaryBackward))
+    {
       ++ labelDelta;
+      if (labelDelta == 0)
+        return i->addr;
+    }
+    -- i;
   }
-  if (labelDelta == 0)
-    return i->addr;
   return nullptr;
 }
 
