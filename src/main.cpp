@@ -23,7 +23,7 @@
 
 using namespace as64;
 
-constexpr const char *g_version = "v1.0.0";
+constexpr const char *g_version = "v1.0.1";
 
 static void usage()
 {

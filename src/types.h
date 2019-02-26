@@ -41,7 +41,7 @@ public:
   void reset() noexcept;
 
   T operator *() const noexcept { return value_; }
-  T operator ->() const noexcept { return value_; }
+  T* operator ->() const noexcept { return &value_; }
   T value() const noexcept { return value_; }
   T value(T defaultValue) const noexcept { return has_ ? value_ : defaultValue; }
   bool hasValue() const noexcept { return has_; }
@@ -59,7 +59,7 @@ template<typename T> void Maybe<T>::reset() noexcept
 
 template<typename T> Maybe<T>& Maybe<T>::operator=(T value) noexcept
 {
-  value_ = value_;
+  value_ = value;
   has_ = true;
   return *this;
 }
